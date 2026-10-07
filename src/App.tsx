@@ -23,7 +23,6 @@ import { useChatStore } from "./store/useChatStore";
 import type { Message } from "./types/chat";
 import type { WebLLMProvider } from "./core/providers/WebLLMProvider";
 
-const OLLAMA_MODEL = "qwen2.5";
 let webLLMProvider: WebLLMProvider | null = null;
 
 type Engine = "ollama" | "webgpu";
@@ -42,7 +41,7 @@ function App() {
   const setStreamingFailed = useChatStore((state) => state.setStreamingFailed);
 
   const [engineMode, setEngineMode] = useState<Engine>("ollama");
-  const [modelName, setModelName] = useState(OLLAMA_MODEL);
+  const [modelName, setModelName] = useState("");
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
@@ -196,6 +195,10 @@ function App() {
     event.preventDefault();
     const content = input.trim();
     if (!content || abortControllerRef.current) return;
+    if (!modelName) {
+      setRequestError("请先从右上角选择一个可用模型。");
+      return;
+    }
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -205,12 +208,7 @@ function App() {
 
     try {
       const sessionId =
-        currentSessionId ??
-        (
-          await createNewSession(
-            modelName,
-          )
-        ).id;
+        currentSessionId ?? (await createNewSession(modelName)).id;
       const createdAt = Date.now();
       const userMessage: Message = {
         id: crypto.randomUUID(),
@@ -560,9 +558,9 @@ function App() {
                   选择本地推理引擎，开始一段私密、流畅的 Agent 对话。
                 </p>
                 <p className="mt-5 rounded-md border border-zinc-800/80 bg-zinc-900/60 px-3 py-1.5 text-[11px] text-zinc-500">
-                  {engineMode === "ollama"
-                    ? `Ollama · ${modelName}`
-                    : `WebGPU · ${modelName}`}
+                  {modelName
+                    ? `${engineMode === "ollama" ? "Ollama" : "WebGPU"} · ${modelName}`
+                    : "请从右上角选择一个可用模型"}
                 </p>
               </div>
             ) : (
@@ -622,11 +620,13 @@ function App() {
                 }
               }}
               placeholder={
-                engineMode === "webgpu" && !isWebLLMReady
-                  ? isWebLLMLoading
-                    ? "WebGPU 模型加载中，请稍候..."
-                    : "请先加载 WebGPU 端侧模型..."
-                  : "Message your agent…"
+                !modelName
+                  ? "请先从右上角选择一个可用模型..."
+                  : engineMode === "webgpu" && !isWebLLMReady
+                    ? isWebLLMLoading
+                      ? "WebGPU 模型加载中，请稍候..."
+                      : "请先加载 WebGPU 端侧模型..."
+                    : "Message your agent…"
               }
               rows={1}
               disabled={
@@ -639,6 +639,7 @@ function App() {
               aria-label="发送消息"
               disabled={
                 !input.trim() ||
+                !modelName ||
                 isSending ||
                 (engineMode === "webgpu" && !isWebLLMReady)
               }

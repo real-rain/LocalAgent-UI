@@ -38,7 +38,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const messages = await getMessagesBySession(sessionId);
     set({ currentSessionId: sessionId, messages });
   },
-  createNewSession: async (model = "qwen2.5") => {
+  createNewSession: async (model = "") => {
     const session = await createSession("新会话", model);
     set((state) => ({
       sessions: [session, ...state.sessions],

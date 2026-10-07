@@ -20,17 +20,6 @@ export interface ModelSelectorPopoverProps {
     onSelectEngine: (engine: 'ollama' | 'webgpu', model: string) => void;
 }
 
-const webGPUModels = [
-    {
-        model: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
-        label: 'Llama 3.2 1B',
-    },
-    {
-        model: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
-        label: 'Qwen 2.5 0.5B',
-    },
-];
-
 const ollamaConnectionError = '无法连接到 Ollama 服务，请先在终端运行 ollama serve';
 
 export function ModelSelectorPopover({
@@ -51,10 +40,49 @@ export function ModelSelectorPopover({
         reason?: string;
     }>({ isSupported: false });
     const [isCheckingWebGPU, setIsCheckingWebGPU] = useState(true);
+    const [webGPUModels, setWebGPUModels] = useState<
+        { model: string; vramRequiredMB?: number }[]
+    >([]);
+    const [isLoadingWebGPUModels, setIsLoadingWebGPUModels] = useState(false);
+    const [webGPUModelsError, setWebGPUModelsError] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const healthCheckId = useRef(0);
+    const webGPUModelsRequest = useRef<Promise<void> | null>(null);
+
+    const loadWebGPUModels = () => {
+        if (webGPUModels.length > 0 || webGPUModelsRequest.current) return;
+
+        setIsLoadingWebGPUModels(true);
+        setWebGPUModelsError(null);
+        webGPUModelsRequest.current = import('@mlc-ai/web-llm')
+            .then(({ ModelType, prebuiltAppConfig }) => {
+                setWebGPUModels(
+                    prebuiltAppConfig.model_list
+                        .filter(
+                            (model) =>
+                                model.model_type === undefined ||
+                                model.model_type === ModelType.LLM,
+                        )
+                        .map((model) => ({
+                            model: model.model_id,
+                            vramRequiredMB: model.vram_required_MB,
+                        })),
+                );
+            })
+            .catch((cause: unknown) => {
+                setWebGPUModelsError(
+                    cause instanceof Error
+                        ? `无法加载 WebGPU 模型列表：${cause.message}`
+                        : '无法加载 WebGPU 模型列表。',
+                );
+            })
+            .finally(() => {
+                webGPUModelsRequest.current = null;
+                setIsLoadingWebGPUModels(false);
+            });
+    };
 
     const refreshHealth = useCallback(async () => {
         const currentCheckId = ++healthCheckId.current;
@@ -116,7 +144,9 @@ export function ModelSelectorPopover({
     const selectedIsOffline =
         (selectedEngine === 'ollama' && !ollamaStatus.loading && !ollamaStatus.isAlive) ||
         (selectedEngine === 'webgpu' && !isCheckingWebGPU && !webgpuStatus.isSupported);
-    const triggerLabel = `${selectedEngine === 'ollama' ? 'Ollama' : 'WebGPU'} · ${selectedModel}`;
+    const triggerLabel = selectedModel
+        ? `${selectedEngine === 'ollama' ? 'Ollama' : 'WebGPU'} · ${selectedModel}`
+        : '选择模型';
 
     const handleOllamaSelect = (model: string) => {
         if (!ollamaStatus.isAlive) {
@@ -148,6 +178,7 @@ export function ModelSelectorPopover({
                 onClick={() => {
                     if (!isOpen) {
                         beginHealthCheck();
+                        loadWebGPUModels();
                     }
                     setIsOpen(!isOpen);
                 }}
@@ -178,7 +209,7 @@ export function ModelSelectorPopover({
 
             {isOpen && (
                 <div
-                    className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-xl shadow-black/40"
+                    className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-xl shadow-black/40"
                     role="listbox"
                     aria-label="选择模型"
                 >
@@ -233,40 +264,62 @@ export function ModelSelectorPopover({
                         <Sparkles className="h-3 w-3 text-blue-400" aria-hidden="true" />
                         IN-BROWSER WEBGPU
                     </div>
-                    {webGPUModels.map((option) => {
-                        const isSelected = selectedEngine === 'webgpu' && selectedModel === option.model;
-                        const isDisabled = !webgpuStatus.isSupported;
+                    {isLoadingWebGPUModels ? (
+                        <div className="flex items-center gap-2.5 px-2.5 py-2 text-xs text-zinc-500">
+                            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            正在加载 WebGPU 模型列表…
+                        </div>
+                    ) : webGPUModelsError ? (
+                        <p className="px-2.5 py-2 text-xs text-red-400" role="alert">
+                            {webGPUModelsError}
+                        </p>
+                    ) : webGPUModels.length === 0 ? (
+                        <p className="px-2.5 py-2 text-xs text-zinc-500">
+                            当前没有可用的文本对话模型。
+                        </p>
+                    ) : (
+                        webGPUModels.map((option) => {
+                            const isSelected =
+                                selectedEngine === 'webgpu' &&
+                                selectedModel === option.model;
+                            const isDisabled = !webgpuStatus.isSupported;
 
-                        return (
-                            <button
-                                key={option.model}
-                                type="button"
-                                role="option"
-                                aria-selected={isSelected}
-                                aria-disabled={isDisabled}
-                                title={isDisabled ? '浏览器不支持 WebGPU' : undefined}
-                                disabled={isDisabled}
-                                onClick={() => {
-                                    onSelectEngine('webgpu', option.model);
-                                    setIsOpen(false);
-                                }}
-                                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors focus-visible:outline-none ${
-                                    isDisabled
-                                        ? 'cursor-not-allowed text-zinc-600'
-                                        : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70'
-                                }`}
-                            >
-                                <Cpu
-                                    className={`h-4 w-4 ${isDisabled ? 'text-zinc-700' : 'text-zinc-500'}`}
-                                    aria-hidden="true"
-                                />
-                                <span className="flex-1">{option.label}</span>
-                                {isSelected && (
-                                    <Check className="h-4 w-4 text-blue-400" aria-hidden="true" />
-                                )}
-                            </button>
-                        );
-                    })}
+                            return (
+                                <button
+                                    key={option.model}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    aria-disabled={isDisabled}
+                                    title={isDisabled ? '浏览器不支持 WebGPU' : option.model}
+                                    disabled={isDisabled}
+                                    onClick={() => {
+                                        onSelectEngine('webgpu', option.model);
+                                        setIsOpen(false);
+                                    }}
+                                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors focus-visible:outline-none ${
+                                        isDisabled
+                                            ? 'cursor-not-allowed text-zinc-600'
+                                            : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70'
+                                    }`}
+                                >
+                                    <Cpu
+                                        className={`h-4 w-4 shrink-0 ${isDisabled ? 'text-zinc-700' : 'text-zinc-500'}`}
+                                        aria-hidden="true"
+                                    />
+                                    <span className="flex-1 truncate">{option.model}</span>
+                                    {option.vramRequiredMB !== undefined && (
+                                        <span className="shrink-0 text-[10px] text-zinc-500">
+                                            {(option.vramRequiredMB / 1024).toFixed(1)} GB
+                                        </span>
+                                    )}
+                                    {isSelected && (
+                                        <Check className="h-4 w-4 shrink-0 text-blue-400" aria-hidden="true" />
+                                    )}
+                                </button>
+                            );
+                        })
+                    )}
 
                     {errorMessage && (
                         <p
