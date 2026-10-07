@@ -1,9 +1,9 @@
 /*
- * @Description: 
+ * @Description: App 主入口
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 20:19:15
  * @LastEditors: realrain☔ 1936648485@qq.com
- * @LastEditTime: 2026-10-07 20:27:34
+ * @LastEditTime: 2026-10-07 21:05:38
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\App.tsx
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
@@ -16,6 +16,9 @@ import { useChatStore } from "./store/useChatStore";
 import type { Message } from "./types/chat";
 
 const mockMessage: Message = {
+  id: "mock-message",
+  sessionId: "mock-session",
+  createdAt: Date.now(),
   role: "assistant",
   status: "complete",
   thoughtProcess:
@@ -105,18 +108,47 @@ const mockMessage: Message = {
 };
 
 function App() {
+  const currentSessionId = useChatStore((state) => state.currentSessionId);
   const messages = useChatStore((state) => state.messages);
+  const loadSessions = useChatStore((state) => state.loadSessions);
+  const createNewSession = useChatStore((state) => state.createNewSession);
+  const switchSession = useChatStore((state) => state.switchSession);
   const addMessage = useChatStore((state) => state.addMessage);
   const appendStreamChunk = useChatStore((state) => state.appendStreamChunk);
   const setStreamingComplete = useChatStore((state) => state.setStreamingComplete);
   const setStreamingFailed = useChatStore((state) => state.setStreamingFailed);
-  const clearMessages = useChatStore((state) => state.clearMessages);
   const [model, setModel] = useState("qwen2.5");
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+    void (async () => {
+      try {
+        await loadSessions();
+        if (!isActive) return;
+
+        const [latestSession] = useChatStore.getState().sessions;
+        if (latestSession) {
+          await switchSession(latestSession.id);
+        } else {
+          await createNewSession();
+        }
+      } catch (cause) {
+        if (isActive) {
+          setError(
+            cause instanceof Error ? cause.message : "无法加载本地会话。",
+          );
+        }
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, [createNewSession, loadSessions, switchSession]);
 
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({
@@ -129,23 +161,43 @@ function App() {
     event.preventDefault();
     const content = input.trim();
     if (!content || abortControllerRef.current) return;
+    if (!currentSessionId) {
+      setError("会话尚未加载，请稍后重试。");
+      return;
+    }
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    const conversation = [...messages, { role: "user" as const, content }];
+    const createdAt = Date.now();
+    const assistantMessageId = crypto.randomUUID();
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      sessionId: currentSessionId,
+      createdAt,
+      role: "user",
+      content,
+    };
+    const conversation = [...messages, userMessage];
     setInput("");
     setError(null);
     setIsSending(true);
 
-    addMessage({ role: "user", content });
-    addMessage({ role: "assistant", content: "", status: "streaming" });
-
     try {
+      await addMessage(userMessage);
+      await addMessage({
+        id: assistantMessageId,
+        sessionId: currentSessionId,
+        createdAt: Date.now(),
+        role: "assistant",
+        content: "",
+        status: "streaming",
+      });
+
       const provider = new OllamaProvider(model);
       for await (const chunk of provider.chatStream(conversation, controller.signal)) {
-        appendStreamChunk(chunk);
+        appendStreamChunk(assistantMessageId, chunk);
       }
-      setStreamingComplete();
+      await setStreamingComplete(assistantMessageId);
     } catch (cause) {
       if (!controller.signal.aborted) {
         const message =
@@ -161,17 +213,30 @@ function App() {
     }
   }
 
-  function loadMockMessage() {
-    addMessage(mockMessage);
-    setError(null);
+  async function loadMockMessage() {
+    if (!currentSessionId) return;
+    try {
+      await addMessage({
+        ...mockMessage,
+        id: crypto.randomUUID(),
+        sessionId: currentSessionId,
+      });
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "无法保存示例消息。");
+    }
   }
 
-  function clearConversation() {
+  async function clearConversation() {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setIsSending(false);
     setError(null);
-    clearMessages();
+    try {
+      await createNewSession(model);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "无法创建新会话。");
+    }
   }
 
   return (
