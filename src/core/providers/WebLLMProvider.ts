@@ -117,45 +117,44 @@ export class WebLLMProvider {
     async *chatStream(
         modelId: string,
         messages: Message[],
+        signal?: AbortSignal,
     ): AsyncGenerator<StreamChunk> {
         if (typeof navigator === "undefined" || !("gpu" in navigator)) {
-            yield { type: "text_delta", content: WEBGPU_UNSUPPORTED_MESSAGE };
-            return;
+            throw new Error(WEBGPU_UNSUPPORTED_MESSAGE);
         }
 
-        try {
-            if (!this.engine || this.loadedModelId !== modelId) {
-                await this.initEngine(modelId, () => undefined);
+        if (!this.engine || this.loadedModelId !== modelId) {
+            await this.initEngine(modelId, () => undefined);
+        }
+
+        if (signal?.aborted) return;
+
+        if (!this.engine) {
+            throw new Error("WebLLM 引擎初始化失败。");
+        }
+
+        const parser = new StreamParser();
+        const stream = await this.engine.chat.completions.create({
+            messages,
+            stream: true,
+        });
+
+        for await (const chunk of stream) {
+            if (signal?.aborted) {
+                await this.engine.interruptGenerate();
+                return;
             }
 
-            if (!this.engine) {
-                throw new Error("WebLLM 引擎初始化失败。");
-            }
+            const content = chunk.choices[0]?.delta.content;
+            if (!content) continue;
 
-            const parser = new StreamParser();
-            const stream = await this.engine.chat.completions.create({
-                messages,
-                stream: true,
-            });
-
-            for await (const chunk of stream) {
-                const content = chunk.choices[0]?.delta.content;
-                if (!content) continue;
-
-                for (const parsedChunk of parser.parse(content)) {
-                    yield parsedChunk;
-                }
-            }
-
-            for (const parsedChunk of parser.flush()) {
+            for (const parsedChunk of parser.parse(content)) {
                 yield parsedChunk;
             }
-        } catch (cause) {
-            const message =
-                cause instanceof Error
-                    ? cause.message
-                    : "与 WebLLM 通信时发生未知错误。";
-            yield { type: "text_delta", content: `WebLLM 请求失败：${message}` };
+        }
+
+        for (const parsedChunk of parser.flush()) {
+            yield parsedChunk;
         }
     }
 }

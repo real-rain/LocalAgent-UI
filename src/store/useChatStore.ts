@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   createSession,
+  deleteSession as deleteSessionRecord,
   getAllSessions,
   getMessagesBySession,
   saveMessage,
@@ -15,8 +16,9 @@ interface ChatState {
   loadSessions: () => Promise<void>;
   switchSession: (sessionId: string) => Promise<void>;
   createNewSession: (model?: string) => Promise<Session>;
+  deleteSession: (sessionId: string) => Promise<void>;
   addMessage: (message: Message) => Promise<void>;
-  appendStreamChunk: (id: string, chunk: string) => void;
+  appendStreamChunk: (id: string, chunk: string, isThought?: boolean) => void;
   setStreamingComplete: (id?: string) => Promise<void>;
   setStreamingFailed: () => void;
   clearMessages: () => void;
@@ -44,11 +46,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await get().switchSession(session.id);
     return session;
   },
+  deleteSession: async (sessionId) => {
+    await deleteSessionRecord(sessionId);
+    const sessions = get().sessions.filter((session) => session.id !== sessionId);
+    const wasCurrent = get().currentSessionId === sessionId;
+
+    set({
+      sessions,
+      ...(wasCurrent ? { currentSessionId: null, messages: [] } : {}),
+    });
+
+    if (wasCurrent && sessions[0]) {
+      await get().switchSession(sessions[0].id);
+    }
+  },
   addMessage: async (message) => {
     set((state) => ({ messages: [...state.messages, message] }));
     await saveMessage(message);
   },
-  appendStreamChunk: (id, chunk) =>
+  appendStreamChunk: (id, chunk, isThought = false) =>
     set((state) => {
       const index = state.messages.findIndex((message) => message.id === id);
       if (index < 0) return state;
@@ -56,7 +72,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const messages = [...state.messages];
       messages[index] = {
         ...messages[index],
-        content: messages[index].content + chunk,
+        ...(isThought
+          ? { thoughtProcess: (messages[index].thoughtProcess ?? "") + chunk }
+          : { content: messages[index].content + chunk }),
       };
       return { messages };
     }),

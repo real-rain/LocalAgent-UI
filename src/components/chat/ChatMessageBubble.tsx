@@ -41,6 +41,15 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
     const isAssistant = message.role === "assistant";
     const isStreaming = message.status === "streaming";
 
+    if (
+        isAssistant &&
+        !message.content.trim() &&
+        !message.thoughtProcess?.trim() &&
+        !message.toolCalls?.length
+    ) {
+        return null;
+    }
+
     return (
         <div
             className={`chat-message chat-message--${message.role}`}
