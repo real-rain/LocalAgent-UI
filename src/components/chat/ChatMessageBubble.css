@@ -4,6 +4,7 @@
   box-sizing: border-box;
   padding: 0.375rem 0;
   text-align: left;
+  contain: content;
 }
 
 .chat-message--user {

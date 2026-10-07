@@ -3,13 +3,14 @@
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 21:49:06
  * @LastEditors: realrain☔ 1936648485@qq.com
- * @LastEditTime: 2026-10-07 21:50:52
+ * @LastEditTime: 2026-10-07 22:14:33
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\components\chat\ModelSelectorPopover.tsx
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
- * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ * Copyright (c) 2026 by realrain, All Rights Reserved.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Cpu, Server, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Check, ChevronDown, Cpu, LoaderCircle, Server, Sparkles } from 'lucide-react';
+import { checkWebGPUSupport, fetchOllamaModels } from '../../core/utils/healthCheck';
 
 export interface ModelSelectorPopoverProps {
     selectedEngine: 'ollama' | 'webgpu';
@@ -19,32 +20,18 @@ export interface ModelSelectorPopoverProps {
     onSelectEngine: (engine: 'ollama' | 'webgpu', model: string) => void;
 }
 
-const modelOptions = [
+const webGPUModels = [
     {
-        engine: 'ollama',
-        model: 'qwen2.5',
-        label: 'Qwen 2.5',
-        icon: Server,
-    },
-    {
-        engine: 'ollama',
-        model: 'deepseek-r1',
-        label: 'DeepSeek R1 Local',
-        icon: Server,
-    },
-    {
-        engine: 'webgpu',
         model: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
         label: 'Llama 3.2 1B',
-        icon: Cpu,
     },
     {
-        engine: 'webgpu',
         model: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
         label: 'Qwen 2.5 0.5B',
-        icon: Cpu,
     },
-] as const;
+];
+
+const ollamaConnectionError = '无法连接到 Ollama 服务，请先在终端运行 ollama serve';
 
 export function ModelSelectorPopover({
     selectedEngine,
@@ -54,15 +41,54 @@ export function ModelSelectorPopover({
     onSelectEngine,
 }: ModelSelectorPopoverProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [ollamaStatus, setOllamaStatus] = useState({
+        isAlive: false,
+        models: [] as string[],
+        loading: true,
+    });
+    const [webgpuStatus, setWebgpuStatus] = useState<{
+        isSupported: boolean;
+        reason?: string;
+    }>({ isSupported: false });
+    const [isCheckingWebGPU, setIsCheckingWebGPU] = useState(true);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
-    const selectedOption = modelOptions.find(
-        (option) => option.engine === selectedEngine && option.model === selectedModel,
-    );
-    const engineLabel = selectedEngine === 'ollama' ? 'Ollama' : 'WebGPU';
-    const triggerLabel = selectedOption
-        ? `${engineLabel} · ${selectedOption.label}`
-        : `${engineLabel} · ${selectedModel}`;
+    const healthCheckId = useRef(0);
+
+    const refreshHealth = useCallback(async () => {
+        const currentCheckId = ++healthCheckId.current;
+
+        const [webgpuResult, ollamaResult] = await Promise.all([
+            checkWebGPUSupport(),
+            fetchOllamaModels(),
+        ]);
+
+        if (currentCheckId !== healthCheckId.current) {
+            return ollamaResult;
+        }
+
+        setWebgpuStatus(webgpuResult);
+        setIsCheckingWebGPU(false);
+        setOllamaStatus({ ...ollamaResult, loading: false });
+        return ollamaResult;
+    }, []);
+
+    useEffect(() => {
+        void refreshHealth();
+    }, [refreshHealth]);
+
+    const beginHealthCheck = () => {
+        setOllamaStatus((status) => ({ ...status, loading: true }));
+        setIsCheckingWebGPU(true);
+        void refreshHealth();
+    };
+
+    useEffect(() => {
+        if (!errorMessage) return;
+        const timeout = window.setTimeout(() => setErrorMessage(null), 4000);
+        return () => window.clearTimeout(timeout);
+    }, [errorMessage]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -87,6 +113,31 @@ export function ModelSelectorPopover({
         };
     }, [isOpen]);
 
+    const selectedIsOffline =
+        (selectedEngine === 'ollama' && !ollamaStatus.loading && !ollamaStatus.isAlive) ||
+        (selectedEngine === 'webgpu' && !isCheckingWebGPU && !webgpuStatus.isSupported);
+    const triggerLabel = `${selectedEngine === 'ollama' ? 'Ollama' : 'WebGPU'} · ${selectedModel}`;
+
+    const handleOllamaSelect = (model: string) => {
+        if (!ollamaStatus.isAlive) {
+            setErrorMessage(ollamaConnectionError);
+            return;
+        }
+
+        onSelectEngine('ollama', model);
+        setIsOpen(false);
+    };
+
+    const handleReconnect = async () => {
+        setErrorMessage(ollamaConnectionError);
+        setOllamaStatus((status) => ({ ...status, loading: true }));
+        setIsCheckingWebGPU(true);
+        const result = await refreshHealth();
+        if (result.isAlive) {
+            setErrorMessage(null);
+        }
+    };
+
     return (
         <div className="relative inline-block" ref={popoverRef}>
             <button
@@ -94,10 +145,19 @@ export function ModelSelectorPopover({
                 type="button"
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                onClick={() => setIsOpen((open) => !open)}
+                onClick={() => {
+                    if (!isOpen) {
+                        beginHealthCheck();
+                    }
+                    setIsOpen(!isOpen);
+                }}
                 className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
             >
-                {selectedEngine === 'ollama' ? (
+                {selectedIsOffline ? (
+                    <span className="h-2 w-2 rounded-full bg-red-500" aria-label="服务连接异常" />
+                ) : selectedEngine === 'ollama' && ollamaStatus.loading ? (
+                    <LoaderCircle className="h-3 w-3 animate-spin text-zinc-400" aria-label="正在检查 Ollama" />
+                ) : selectedEngine === 'ollama' ? (
                     <span className="h-2 w-2 rounded-full bg-emerald-500" aria-label="Ollama active" />
                 ) : isWebLLMLoading ? (
                     <span
@@ -125,60 +185,97 @@ export function ModelSelectorPopover({
                     <div className="px-2.5 pb-1.5 pt-2 text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
                         LOCAL ENDPOINTS
                     </div>
-                    {modelOptions
-                        .filter((option) => option.engine === 'ollama')
-                        .map((option) => {
-                            const Icon = option.icon;
-                            const isSelected = selectedEngine === option.engine && selectedModel === option.model;
+                    {ollamaStatus.loading ? (
+                        <div className="flex items-center gap-2.5 px-2.5 py-2 text-xs text-zinc-500">
+                            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            正在检查 Ollama…
+                        </div>
+                    ) : ollamaStatus.isAlive ? (
+                        ollamaStatus.models.length > 0 ? (
+                            ollamaStatus.models.map((model) => {
+                                const isSelected = selectedEngine === 'ollama' && selectedModel === model;
 
-                            return (
-                                <button
-                                    key={option.model}
-                                    type="button"
-                                    role="option"
-                                    aria-selected={isSelected}
-                                    onClick={() => {
-                                        onSelectEngine(option.engine, option.model);
-                                        setIsOpen(false);
-                                    }}
-                                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none"
-                                >
-                                    <Icon className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-                                    <span className="flex-1">{option.label}</span>
-                                    {isSelected && <Check className="h-4 w-4 text-emerald-400" aria-hidden="true" />}
-                                </button>
-                            );
-                        })}
+                                return (
+                                    <button
+                                        key={model}
+                                        type="button"
+                                        role="option"
+                                        aria-selected={isSelected}
+                                        onClick={() => handleOllamaSelect(model)}
+                                        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none"
+                                    >
+                                        <Server className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
+                                        <span className="flex-1 truncate">{model}</span>
+                                        {isSelected && (
+                                            <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <p className="px-2.5 py-2 text-xs text-zinc-500">
+                                无可用模型 (请先执行 ollama pull)
+                            </p>
+                        )
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => void handleReconnect()}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-amber-400 transition-colors hover:bg-zinc-800/70 focus-visible:bg-zinc-800/70 focus-visible:outline-none"
+                        >
+                            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                            Disconnected (点击重连)
+                        </button>
+                    )}
 
                     <div className="mx-2 my-1.5 border-t border-zinc-800" />
                     <div className="flex items-center gap-1.5 px-2.5 pb-1.5 pt-1 text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
                         <Sparkles className="h-3 w-3 text-blue-400" aria-hidden="true" />
                         IN-BROWSER WEBGPU
                     </div>
-                    {modelOptions
-                        .filter((option) => option.engine === 'webgpu')
-                        .map((option) => {
-                            const Icon = option.icon;
-                            const isSelected = selectedEngine === option.engine && selectedModel === option.model;
+                    {webGPUModels.map((option) => {
+                        const isSelected = selectedEngine === 'webgpu' && selectedModel === option.model;
+                        const isDisabled = !webgpuStatus.isSupported;
 
-                            return (
-                                <button
-                                    key={option.model}
-                                    type="button"
-                                    role="option"
-                                    aria-selected={isSelected}
-                                    onClick={() => {
-                                        onSelectEngine(option.engine, option.model);
-                                        setIsOpen(false);
-                                    }}
-                                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none"
-                                >
-                                    <Icon className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-                                    <span className="flex-1">{option.label}</span>
-                                    {isSelected && <Check className="h-4 w-4 text-blue-400" aria-hidden="true" />}
-                                </button>
-                            );
-                        })}
+                        return (
+                            <button
+                                key={option.model}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                aria-disabled={isDisabled}
+                                title={isDisabled ? '浏览器不支持 WebGPU' : undefined}
+                                disabled={isDisabled}
+                                onClick={() => {
+                                    onSelectEngine('webgpu', option.model);
+                                    setIsOpen(false);
+                                }}
+                                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors focus-visible:outline-none ${
+                                    isDisabled
+                                        ? 'cursor-not-allowed text-zinc-600'
+                                        : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70'
+                                }`}
+                            >
+                                <Cpu
+                                    className={`h-4 w-4 ${isDisabled ? 'text-zinc-700' : 'text-zinc-500'}`}
+                                    aria-hidden="true"
+                                />
+                                <span className="flex-1">{option.label}</span>
+                                {isSelected && (
+                                    <Check className="h-4 w-4 text-blue-400" aria-hidden="true" />
+                                )}
+                            </button>
+                        );
+                    })}
+
+                    {errorMessage && (
+                        <p
+                            className="mt-1.5 border-t border-zinc-800 px-2.5 py-2 text-xs text-red-400"
+                            role="alert"
+                        >
+                            {errorMessage}
+                        </p>
+                    )}
                 </div>
             )}
         </div>

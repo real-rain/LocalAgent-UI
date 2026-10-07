@@ -7,6 +7,7 @@ import {
   type MouseEvent,
 } from "react";
 import {
+  ArrowDown,
   Cpu,
   Plus,
   Send,
@@ -17,6 +18,7 @@ import {
 import ChatMessageBubble from "./components/chat/ChatMessageBubble";
 import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
 import { OllamaProvider } from "./core/providers/OllamaProvider";
+import { useAutoScroll } from "./hooks/useAutoScroll";
 import { useChatStore } from "./store/useChatStore";
 import type { Message } from "./types/chat";
 import type { WebLLMProvider } from "./core/providers/WebLLMProvider";
@@ -51,7 +53,12 @@ function App() {
   const [engineError, setEngineError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isStreaming = messages.some((message) => message.status === "streaming");
+  const {
+    scrollRef: scrollContainerRef,
+    isAtBottom,
+    scrollToBottom,
+  } = useAutoScroll(messages, isStreaming);
   const abortControllerRef = useRef<AbortController | null>(null);
   const webGPUInitializationRef = useRef<Promise<void> | null>(null);
 
@@ -134,13 +141,6 @@ function App() {
       isActive = false;
     };
   }, [loadSessions, switchSession]);
-
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({
-      top: scrollContainerRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
 
   function stopActiveStream() {
     if (!abortControllerRef.current) return;
@@ -425,12 +425,14 @@ function App() {
           </fieldset>
         </header>
 
-        <section
-          ref={scrollContainerRef}
-          aria-label="对话消息"
-          className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-6 sm:px-6"
-        >
-          <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={scrollContainerRef}
+            role="region"
+            aria-label="对话消息"
+            className="chat-messages-scroll h-full overflow-y-auto px-4 pb-8 pt-6 sm:px-6"
+          >
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
             {engineMode === "webgpu" && !isWebLLMReady ? (
               <div className="flex min-h-[52vh] items-center justify-center px-4 py-8">
                 <section
@@ -577,7 +579,24 @@ function App() {
               </div>
             )}
           </div>
-        </section>
+          </div>
+          {!isAtBottom && isStreaming && (
+            <div className="absolute bottom-4 right-5 z-20 flex items-center gap-2">
+              <span className="rounded-full border border-zinc-700/80 bg-zinc-900/95 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-lg shadow-black/30 backdrop-blur">
+                New messages...
+              </span>
+              <button
+                type="button"
+                aria-label="滚动到最新消息"
+                title="滚动到最新消息"
+                onClick={scrollToBottom}
+                className="grid size-10 place-items-center rounded-full border border-zinc-700 bg-zinc-800/95 text-zinc-100 shadow-lg shadow-black/30 transition hover:border-violet-400/50 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              >
+                <ArrowDown className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
 
         <footer className="shrink-0 border-t border-zinc-800/80 bg-zinc-950/90 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:px-6">
           <form
