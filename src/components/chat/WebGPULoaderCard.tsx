@@ -1,4 +1,5 @@
 import { Cpu, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import logo from "../../assets/logo.svg";
 
 interface WebGPULoaderCardProps {
@@ -14,6 +15,7 @@ export function WebGPULoaderCard({
   onRetry,
   error,
 }: WebGPULoaderCardProps) {
+  const { t } = useTranslation();
   const percentage = Math.min(
     100,
     Number(progress.match(/(\d+(?:\.\d+)?)\s*%/)?.[1] ?? (isLoading ? 8 : 0)),
@@ -33,7 +35,7 @@ export function WebGPULoaderCard({
           <div className="mb-6 flex items-center gap-2 border-b border-zinc-800/80 pb-4">
             <img src={logo} alt="" className="size-5" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
-              LocalAgent · Runtime Monitor
+              {t("chat.runtimeMonitor")}
             </span>
           </div>
 
@@ -59,10 +61,10 @@ export function WebGPULoaderCard({
             </div>
             <div className="min-w-0 flex-1 pt-0.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-300/80">
-                Local inference · WebGPU
+                {t("chat.localInference")}
               </p>
               <h2 className="mt-2 text-sm font-semibold tracking-wide text-zinc-100">
-                WebGPU Accelerated Engine Initializing...
+                {t("chat.acceleratedEngineInitializing")}
               </h2>
               <p className="mt-1.5 break-words text-xs leading-5 text-zinc-400">
                 {progress || "Initializing WebGPU Engine..."}
@@ -72,7 +74,7 @@ export function WebGPULoaderCard({
 
           <div className="mt-7">
             <div className="mb-2 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider">
-              <span className="text-zinc-500">Model download</span>
+              <span className="text-zinc-500">{t("chat.modelDownload")}</span>
               <span className="tabular-nums text-indigo-300">
                 {percentage.toFixed(0)}%
               </span>
@@ -91,7 +93,7 @@ export function WebGPULoaderCard({
               />
             </div>
             <p className="mt-3 break-words font-mono text-[11px] leading-5 text-zinc-500">
-              {progress || "Waiting for WebGPU runtime..."}
+              {progress || t("chat.waitingForRuntime")}
             </p>
           </div>
 
@@ -102,7 +104,7 @@ export function WebGPULoaderCard({
           )}
 
           <div className="mt-5 rounded-lg border border-indigo-500/10 bg-indigo-500/5 px-3 py-2.5 text-[11px] leading-5 text-zinc-400">
-            首次加载需从浏览器端缓存权重，二次打开将秒级启动，无需再次下载。
+            {t("chat.firstLoadNote")}
           </div>
 
           <button
@@ -115,7 +117,7 @@ export function WebGPULoaderCard({
               className={`size-4 ${isLoading ? "animate-spin" : ""}`}
               aria-hidden="true"
             />
-            {isLoading ? "Initializing WebGPU Model…" : "Retry WebGPU Initialization"}
+            {isLoading ? t("chat.initializingModel") : t("chat.retryWebgpu")}
           </button>
         </div>
       </section>

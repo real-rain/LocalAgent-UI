@@ -1,19 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Brain, ChevronDown, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Message } from "../../types/chat";
 
 interface ThoughtAccordionProps {
     message: Message;
 }
 
-const THINKING_PROMPTS = [
-    "分析需求上下文...",
-    "构思代码结构...",
-    "进行 Chain-of-Thought 推演...",
-];
-
 export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
+    const { t } = useTranslation();
     const thoughtProcess = message.thoughtProcess ?? "";
     const isStreaming = message.status === "streaming";
     const shouldRender = isStreaming || Boolean(thoughtProcess.trim());
@@ -65,7 +61,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
         if (!isStreaming || thoughtProcess) return;
 
         const timer = window.setInterval(() => {
-            setPromptIndex((index) => (index + 1) % THINKING_PROMPTS.length);
+            setPromptIndex((index) => (index + 1) % 3);
         }, 2400);
 
         return () => window.clearInterval(timer);
@@ -80,7 +76,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                 animate={{ opacity: 1, y: 0 }}
                 className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3.5 backdrop-blur"
                 aria-live="polite"
-                aria-label="Agent Deep Thinking"
+                aria-label={t("chat.agentDeepThinking")}
             >
                 <div className="flex items-center gap-2.5">
                     <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
@@ -92,7 +88,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                     </span>
                     <div className="min-w-0">
                         <div className="font-mono text-xs font-semibold tracking-wide text-indigo-200">
-                            Agent Deep Thinking...
+                            {t("chat.deepThinking")}
                         </div>
                         <AnimatePresence mode="wait">
                             <motion.div
@@ -103,7 +99,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                                 transition={{ duration: 0.2 }}
                                 className="mt-1 text-xs text-indigo-200/65"
                             >
-                                {THINKING_PROMPTS[promptIndex]}
+                                {t(`chat.thinkingPrompts.${promptIndex}`)}
                             </motion.div>
                         </AnimatePresence>
                     </div>
@@ -137,11 +133,14 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                 </span>
                 <span className="min-w-0 flex-1">
                     <span className="block font-mono text-xs font-semibold tracking-wide text-indigo-200">
-                        Thought for {elapsedSeconds} seconds
+                        {t("chat.thoughtProcess")}
+                    </span>
+                    <span className="mt-1 block text-xs text-indigo-200/60">
+                        {t("chat.thoughtFor", { seconds: elapsedSeconds })}
                     </span>
                     {isStreaming && (
                         <span className="mt-1 block text-xs text-indigo-200/60">
-                            正在持续推演
+                            {t("chat.continuingThinking")}
                         </span>
                     )}
                 </span>

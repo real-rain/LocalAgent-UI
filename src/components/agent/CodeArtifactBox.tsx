@@ -10,6 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { wrapSandboxHtml } from "../../core/utils/sandboxTemplate";
 
 interface CodeArtifactBoxProps {
@@ -24,6 +25,7 @@ type ArtifactTab = "code" | "preview";
 const PREVIEW_LANGUAGES = new Set(["html", "svg"]);
 
 export function CodeArtifactBox({ language, code, previewCode, title }: CodeArtifactBoxProps) {
+    const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<ArtifactTab>("code");
     const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -88,8 +90,8 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                             type="button"
                             onClick={handleToggleFullscreen}
                             className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-                            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                            aria-label={isFullscreen ? t("common.exitFullscreen") : t("common.fullscreen")}
+                            title={isFullscreen ? t("common.exitFullscreen") : t("common.fullscreen")}
                         >
                             {isFullscreen ? (
                                 <Minimize2 className="size-3.5" aria-hidden="true" />
@@ -99,7 +101,7 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                         </button>
                     )}
                     {supportsPreview && (
-                        <div className="mr-1 flex rounded-md bg-zinc-200 p-0.5 dark:bg-zinc-800" role="tablist" aria-label="Artifact view">
+                        <div className="mr-1 flex rounded-md bg-zinc-200 p-0.5 dark:bg-zinc-800" role="tablist" aria-label={t("chat.artifactView")}>
                             <button
                                 type="button"
                                 role="tab"
@@ -114,7 +116,7 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                                     }
                                 }}
                             >
-                                Code
+                                {t("chat.code")}
                             </button>
                             <button
                                 type="button"
@@ -123,7 +125,7 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                                 className={`rounded px-2 py-1 text-xs transition-colors ${activeTab === "preview" ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"}`}
                                 onClick={() => setActiveTab("preview")}
                             >
-                                Preview
+                                {t("chat.preview")}
                             </button>
                         </div>
                     )}
@@ -131,21 +133,21 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                         type="button"
                         onClick={copyCode}
                         className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                        aria-label={copyStatus === "copied" ? "Code copied" : "Copy code"}
+                        aria-label={copyStatus === "copied" ? t("chat.codeCopied") : t("chat.copyCode")}
                     >
                         {copyStatus === "copied" ? (
                             <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                         ) : (
                             <Copy className="size-3.5" aria-hidden="true" />
                         )}
-                        {copyStatus === "copied" ? "Copied" : "Copy"}
+                        {copyStatus === "copied" ? t("chat.codeCopied") : t("common.copy")}
                     </button>
                 </div>
             </header>
 
             {copyStatus === "error" && (
                 <p className="border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300" role="alert">
-                    Unable to copy code. Please copy it manually.
+                    {t("chat.copyCodeError")}
                 </p>
             )}
 
@@ -153,7 +155,9 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                 <div className={`bg-white ${isFullscreen ? "min-h-0 flex-1" : ""}`}>
                     <iframe
                         key="preview-iframe"
-                        title={title ? `${title} preview` : `${language} preview`}
+                        title={t("chat.previewTitle", {
+                            title: title ?? language,
+                        })}
                         className={`w-full border-0 bg-white ${isFullscreen ? "h-full" : "h-[450px] rounded-b-lg"}`}
                         srcDoc={sandboxHtml}
                         sandbox="allow-scripts allow-modals"

@@ -1,0 +1,138 @@
+{
+  "common": {
+    "clear": "Clear",
+    "copy": "Copy",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "close": "Close",
+    "retry": "Retry",
+    "send": "Send",
+    "cancel": "Cancel",
+    "language": "Language",
+    "switchLanguage": "Switch language",
+    "logoAlt": "LocalAgent-UI logo",
+    "liveStatus": "Live",
+    "english": "English",
+    "chinese": "中文"
+  },
+  "header": {
+    "engines": {
+      "webgpu": "WebGPU",
+      "ollama": "Ollama"
+    },
+    "status": {
+      "ready": "Ready",
+      "loading": "Loading",
+      "offline": "Offline"
+    },
+    "selectModel": "Select a model",
+    "localOllama": "Local Ollama inference",
+    "browserWebgpu": "Browser WebGPU inference",
+    "browserRuntime": "Browser model runtime"
+  },
+  "sidebar": {
+    "recentSessions": "Recent Sessions",
+    "newChat": "New Chat",
+    "delete": "Delete",
+    "settings": "Settings",
+    "loadingSessions": "Loading sessions…",
+    "emptySessions": "No sessions yet. Create a new chat to get started.",
+    "newSession": "New session",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "localStorageNote": "Sessions are securely stored in local IndexedDB"
+  },
+  "starterCards": {
+    "livePreview": {
+      "tag": "Live Preview",
+      "title": "🎨 Web Component Preview",
+      "description": "Build an interactive web component and preview it instantly.",
+      "prompt": "Build a card component in HTML, CSS, and JS with a 3D flip effect and subtle particle interactions."
+    },
+    "cotReasoning": {
+      "tag": "CoT Reasoning",
+      "title": "🧠 Chain-of-Thought Reasoning",
+      "description": "Explore an algorithm step by step and compare its complexity.",
+      "prompt": "Analyze and derive the time complexity of quicksort in detail, then compare it with merge sort and heapsort."
+    },
+    "toolCalling": {
+      "tag": "Tool Calling",
+      "title": "🔧 Agent Tool Execution",
+      "description": "Inspect the sandbox and use a tool to calculate a sequence.",
+      "prompt": "Inspect the current sandboxed JavaScript environment and use a tool to calculate the Fibonacci sequence from 1 to 1000."
+    },
+    "quickAnswer": {
+      "tag": "Quick Answer",
+      "title": "⚡ Local WebGPU Benchmark",
+      "description": "Get a concise comparison of local-first AI and cloud LLMs.",
+      "prompt": "In no more than 100 words, summarize the three key advantages of a Local-First AI Agent over a traditional cloud LLM."
+    }
+  },
+  "chat": {
+    "messagePlaceholder": "Message your agent…",
+    "deepThinking": "Deep Thinking...",
+    "thoughtProcess": "Thought Process",
+    "messageLabel": "Message",
+    "conversationMessages": "Conversation messages",
+    "thoughtFor": "Thought for {{seconds}} seconds",
+    "continuingThinking": "Thinking…",
+    "thinkingPrompts": [
+      "Analyzing the request context...",
+      "Planning the code structure...",
+      "Reasoning through the solution..."
+    ],
+    "code": "Code",
+    "preview": "Preview",
+    "newMessages": "New messages...",
+    "scrollToLatest": "Scroll to latest message",
+    "localWebgpuRuntime": "WebGPU · Model runs locally in your browser",
+    "sendHint": "Enter to send, Shift + Enter for a new line",
+    "welcomeTitle": "Welcome to LocalAgent-UI",
+    "welcomeDescription": "A lightweight, local-first AI agent workbench running entirely in your browser.",
+    "selectModelPlaceholder": "Select an available model from the top right…",
+    "webgpuLoadingPlaceholder": "Loading the WebGPU model, please wait…",
+    "webgpuReadyPlaceholder": "Load the local WebGPU model to get started…",
+    "runtimeMonitor": "LocalAgent · Runtime Monitor",
+    "localInference": "Local inference · WebGPU",
+    "acceleratedEngineInitializing": "WebGPU Accelerated Engine Initializing...",
+    "modelDownload": "Model download",
+    "waitingForRuntime": "Waiting for WebGPU runtime...",
+    "firstLoadNote": "The model is cached in your browser on first load. Later launches start quickly without downloading it again.",
+    "initializingModel": "Initializing WebGPU Model…",
+    "retryWebgpu": "Retry WebGPU Initialization",
+    "codeCopied": "Code copied",
+    "copyCode": "Copy code",
+    "copyCodeError": "Unable to copy code. Please copy it manually.",
+    "artifactView": "Artifact view",
+    "previewTitle": "{{title}} preview",
+    "agentDeepThinking": "Agent deep thinking"
+  },
+  "errors": {
+    "webgpuInitializationFailed": "Failed to initialize the WebGPU model.",
+    "loadSessions": "Unable to load local sessions.",
+    "createSession": "Unable to create a new session.",
+    "switchSession": "Unable to switch sessions.",
+    "deleteSession": "Unable to delete the session.",
+    "selectModel": "Select an available model from the top right first.",
+    "webgpuUnavailable": "The WebGPU engine is unavailable after initialization.",
+    "unknownModelCommunication": "An unknown error occurred while communicating with the model."
+  },
+  "modelSelector": {
+    "localEndpoints": "LOCAL ENDPOINTS",
+    "checkingOllama": "Checking Ollama…",
+    "noOllamaModels": "No models available (run ollama pull first)",
+    "reconnect": "Click to reconnect",
+    "inBrowserWebgpu": "IN-BROWSER WEBGPU",
+    "loadingWebgpuModels": "Loading WebGPU models…",
+    "noChatModels": "No text chat models are currently available.",
+    "unsupportedWebgpu": "WebGPU is not supported by this browser",
+    "modelSwitchDuringLoad": "Cannot switch models while a WebGPU model is loading",
+    "ollamaConnectionError": "Cannot connect to Ollama. Start it from a terminal with ollama serve."
+  },
+  "footer": {
+    "createdBy": "Created by @real-rain",
+    "copyContact": "Contact: {{email}} (Click to Copy)",
+    "copiedContact": "Contact email {{email}} copied!",
+    "copyContactFailed": "Copy failed. Check your browser clipboard permissions."
+  }
+}

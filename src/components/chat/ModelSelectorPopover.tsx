@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, Cpu, LoaderCircle, Server, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { checkWebGPUSupport, fetchOllamaModels } from '../../core/utils/healthCheck';
 
 export interface ModelSelectorPopoverProps {
@@ -20,8 +21,6 @@ export interface ModelSelectorPopoverProps {
     onSelectEngine: (engine: 'ollama' | 'webgpu', model: string) => void;
 }
 
-const ollamaConnectionError = '无法连接到 Ollama 服务，请先在终端运行 ollama serve';
-
 export function ModelSelectorPopover({
     selectedEngine,
     selectedModel,
@@ -29,6 +28,7 @@ export function ModelSelectorPopover({
     isWebLLMLoading,
     onSelectEngine,
 }: ModelSelectorPopoverProps) {
+    const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [ollamaStatus, setOllamaStatus] = useState({
         isAlive: false,
@@ -145,12 +145,12 @@ export function ModelSelectorPopover({
         (selectedEngine === 'ollama' && !ollamaStatus.loading && !ollamaStatus.isAlive) ||
         (selectedEngine === 'webgpu' && !isCheckingWebGPU && !webgpuStatus.isSupported);
     const triggerLabel = selectedModel
-        ? `${selectedEngine === 'ollama' ? 'Ollama' : 'WebGPU'} · ${selectedModel}`
-        : '选择模型';
+        ? `${t(`header.engines.${selectedEngine}`)} · ${selectedModel}`
+        : t('header.selectModel');
 
     const handleOllamaSelect = (model: string) => {
         if (!ollamaStatus.isAlive) {
-            setErrorMessage(ollamaConnectionError);
+            setErrorMessage(t('modelSelector.ollamaConnectionError'));
             return;
         }
 
@@ -159,7 +159,7 @@ export function ModelSelectorPopover({
     };
 
     const handleReconnect = async () => {
-        setErrorMessage(ollamaConnectionError);
+        setErrorMessage(t('modelSelector.ollamaConnectionError'));
         setOllamaStatus((status) => ({ ...status, loading: true }));
         setIsCheckingWebGPU(true);
         const result = await refreshHealth();
@@ -169,7 +169,7 @@ export function ModelSelectorPopover({
     };
 
     return (
-        <div className="relative inline-block" ref={popoverRef}>
+        <div className="relative inline-block max-w-full" ref={popoverRef}>
             <button
                 ref={triggerRef}
                 type="button"
@@ -182,25 +182,25 @@ export function ModelSelectorPopover({
                     }
                     setIsOpen(!isOpen);
                 }}
-                className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                className="flex max-w-full items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
             >
                 {selectedIsOffline ? (
-                    <span className="h-2 w-2 rounded-full bg-red-500" aria-label="服务连接异常" />
+                    <span className="h-2 w-2 rounded-full bg-red-500" aria-label={t('header.status.offline')} />
                 ) : selectedEngine === 'ollama' && ollamaStatus.loading ? (
-                    <LoaderCircle className="h-3 w-3 animate-spin text-zinc-400" aria-label="正在检查 Ollama" />
+                    <LoaderCircle className="h-3 w-3 animate-spin text-zinc-400" aria-label={t('header.status.loading')} />
                 ) : selectedEngine === 'ollama' ? (
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-label="Ollama active" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-label={t('header.status.ready')} />
                 ) : isWebLLMLoading ? (
                     <span
                         className="h-2.5 w-2.5 animate-spin rounded-full border border-blue-400/30 border-t-blue-400"
-                        aria-label="WebGPU loading"
+                        aria-label={t('header.status.loading')}
                     />
                 ) : isWebLLMReady ? (
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" aria-label="WebGPU ready" />
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" aria-label={t('header.status.ready')} />
                 ) : (
-                    <span className="h-2 w-2 rounded-full bg-zinc-600" aria-label="WebGPU not ready" />
+                    <span className="h-2 w-2 rounded-full bg-zinc-600" aria-label={t('header.status.offline')} />
                 )}
-                <span>{triggerLabel}</span>
+                <span className="min-w-0 flex-1 truncate">{triggerLabel}</span>
                 <ChevronDown
                     className={`h-3.5 w-3.5 text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     aria-hidden="true"
@@ -211,15 +211,15 @@ export function ModelSelectorPopover({
                 <div
                     className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-xl shadow-black/40"
                     role="listbox"
-                    aria-label="选择模型"
+                    aria-label={t('header.selectModel')}
                 >
                     <div className="px-2.5 pb-1.5 pt-2 text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
-                        LOCAL ENDPOINTS
+                        {t('modelSelector.localEndpoints')}
                     </div>
                     {ollamaStatus.loading ? (
                         <div className="flex items-center gap-2.5 px-2.5 py-2 text-xs text-zinc-500">
                             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                            正在检查 Ollama…
+                            {t('modelSelector.checkingOllama')}
                         </div>
                     ) : ollamaStatus.isAlive ? (
                         ollamaStatus.models.length > 0 ? (
@@ -245,7 +245,7 @@ export function ModelSelectorPopover({
                             })
                         ) : (
                             <p className="px-2.5 py-2 text-xs text-zinc-500">
-                                无可用模型 (请先执行 ollama pull)
+                                {t('modelSelector.noOllamaModels')}
                             </p>
                         )
                     ) : (
@@ -255,19 +255,19 @@ export function ModelSelectorPopover({
                             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-amber-400 transition-colors hover:bg-zinc-800/70 focus-visible:bg-zinc-800/70 focus-visible:outline-none"
                         >
                             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-                            Disconnected (点击重连)
+                            {t('header.status.offline')} · {t('modelSelector.reconnect')}
                         </button>
                     )}
 
                     <div className="mx-2 my-1.5 border-t border-zinc-800" />
                     <div className="flex items-center gap-1.5 px-2.5 pb-1.5 pt-1 text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
                         <Sparkles className="h-3 w-3 text-blue-400" aria-hidden="true" />
-                        IN-BROWSER WEBGPU
+                        {t('modelSelector.inBrowserWebgpu')}
                     </div>
                     {isLoadingWebGPUModels ? (
                         <div className="flex items-center gap-2.5 px-2.5 py-2 text-xs text-zinc-500">
                             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                            正在加载 WebGPU 模型列表…
+                            {t('modelSelector.loadingWebgpuModels')}
                         </div>
                     ) : webGPUModelsError ? (
                         <p className="px-2.5 py-2 text-xs text-red-400" role="alert">
@@ -275,7 +275,7 @@ export function ModelSelectorPopover({
                         </p>
                     ) : webGPUModels.length === 0 ? (
                         <p className="px-2.5 py-2 text-xs text-zinc-500">
-                            当前没有可用的文本对话模型。
+                            {t('modelSelector.noChatModels')}
                         </p>
                     ) : (
                         webGPUModels.map((option) => {
@@ -297,9 +297,9 @@ export function ModelSelectorPopover({
                                     aria-disabled={isDisabled}
                                     title={
                                         !webgpuStatus.isSupported
-                                            ? '浏览器不支持 WebGPU'
+                                            ? t('modelSelector.unsupportedWebgpu')
                                             : isWebLLMLoading
-                                              ? 'WebGPU 模型加载期间无法切换模型'
+                                              ? t('modelSelector.modelSwitchDuringLoad')
                                               : option.model
                                     }
                                     disabled={isDisabled}

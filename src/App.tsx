@@ -15,6 +15,7 @@ import {
   Sidebar,
   Trash2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import githubIcon from "./assets/GitHub.svg";
 import logo from "./assets/logo.svg";
 import telegramIcon from "./assets/telegram.svg";
@@ -36,28 +37,21 @@ const CONTACT_EMAIL = "1936648485@qq.com";
 
 const starterSuggestions = [
   {
-    category: "Live Preview",
-    title: "🎨 Web Component Preview",
-    prompt: "用 HTML/CSS/JS 写一个带 3D 翻转效果与粒子微交互的卡片组件",
+    id: "livePreview",
   },
   {
-    category: "CoT Reasoning",
-    title: "🧠 CoT Chain of Thought",
-    prompt: "详细分析并推导快速排序算法的时间复杂度，对比归并排序与堆排序",
+    id: "cotReasoning",
   },
   {
-    category: "Tool Calling",
-    title: "🔧 Agent Tool Execution",
-    prompt: "检查当前 Sandboxed JavaScript 执行环境，并使用工具计算 1 到 1000 的斐波那契数列",
+    id: "toolCalling",
   },
   {
-    category: "Quick Answer",
-    title: "⚡ Local WebGPU Benchmark",
-    prompt: "请用极简的代码在 100 字内总结 Local-First AI Agent 相比传统 Cloud LLM 的 3 大核心优势",
+    id: "quickAnswer",
   },
 ];
 
 function App() {
+  const { t, i18n } = useTranslation();
   const sessions = useChatStore((state) => state.sessions);
   const currentSessionId = useChatStore((state) => state.currentSessionId);
   const messages = useChatStore((state) => state.messages);
@@ -103,10 +97,16 @@ function App() {
   async function handleCopyContact() {
     try {
       await navigator.clipboard.writeText(CONTACT_EMAIL);
-      setCopyToast(`已复制联系邮箱 ${CONTACT_EMAIL}！`);
+      setCopyToast(t("footer.copiedContact", { email: CONTACT_EMAIL }));
     } catch {
-      setCopyToast("复制失败：请检查浏览器剪贴板权限。");
+      setCopyToast(t("footer.copyContactFailed"));
     }
+  }
+
+  function handleLanguageToggle() {
+    const newLang = i18n.resolvedLanguage?.startsWith("zh") ? "en" : "zh";
+    void i18n.changeLanguage(newLang);
+    window.localStorage.setItem("app-language", newLang);
   }
 
   const handleInitWebLLM = useCallback((): Promise<void> => {
@@ -117,7 +117,7 @@ function App() {
     }
 
     setEngineError(null);
-    setWebLLMProgress("Initializing WebGPU Engine...");
+    setWebLLMProgress(t("chat.acceleratedEngineInitializing"));
     setIsWebLLMLoading(true);
 
     const initialization = import("./core/providers/WebLLMProvider")
@@ -132,7 +132,9 @@ function App() {
       })
       .catch((cause: unknown) => {
         const message =
-          cause instanceof Error ? cause.message : "WebGPU 模型初始化失败。";
+          cause instanceof Error
+            ? cause.message
+            : t("errors.webgpuInitializationFailed");
         setEngineError(message);
         throw cause;
       })
@@ -143,7 +145,7 @@ function App() {
 
     webGPUInitializationRef.current = initialization;
     return initialization;
-  }, [modelName]);
+  }, [modelName, t]);
 
   function handleEngineChange(nextEngine: Engine, nextModel: string) {
     setEngineMode(nextEngine);
@@ -184,7 +186,7 @@ function App() {
       } catch (cause) {
         if (isActive) {
           setRequestError(
-            cause instanceof Error ? cause.message : "无法加载本地会话。",
+            cause instanceof Error ? cause.message : t("errors.loadSessions"),
           );
         }
       } finally {
@@ -195,7 +197,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [loadSessions, switchSession]);
+  }, [loadSessions, switchSession, t]);
 
   function stopActiveStream() {
     if (!abortControllerRef.current) return;
@@ -212,7 +214,7 @@ function App() {
       await createNewSession(modelName);
     } catch (cause) {
       setRequestError(
-        cause instanceof Error ? cause.message : "无法创建新会话。",
+        cause instanceof Error ? cause.message : t("errors.createSession"),
       );
     }
   }
@@ -225,7 +227,7 @@ function App() {
       await switchSession(sessionId);
     } catch (cause) {
       setRequestError(
-        cause instanceof Error ? cause.message : "无法切换会话。",
+        cause instanceof Error ? cause.message : t("errors.switchSession"),
       );
     }
   }
@@ -242,7 +244,7 @@ function App() {
       await deleteSession(sessionId);
     } catch (cause) {
       setRequestError(
-        cause instanceof Error ? cause.message : "无法删除会话。",
+        cause instanceof Error ? cause.message : t("errors.deleteSession"),
       );
     }
   }
@@ -251,7 +253,7 @@ function App() {
     const content = promptText.trim();
     if (!content || abortControllerRef.current) return;
     if (!modelName) {
-      setRequestError("请先从右上角选择一个可用模型。");
+      setRequestError(t("errors.selectModel"));
       return;
     }
 
@@ -291,7 +293,7 @@ function App() {
       if (engineMode === "webgpu") {
         await handleInitWebLLM();
         if (!webLLMProvider) {
-          throw new Error("WebGPU 引擎初始化后不可用。");
+          throw new Error(t("errors.webgpuUnavailable"));
         }
         for await (const chunk of webLLMProvider.chatStream(
           modelName,
@@ -316,7 +318,9 @@ function App() {
     } catch (cause) {
       if (!controller.signal.aborted) {
         setRequestError(
-          cause instanceof Error ? cause.message : "与模型通信时发生未知错误。",
+          cause instanceof Error
+            ? cause.message
+            : t("errors.unknownModelCommunication"),
         );
         setStreamingFailed();
       }
@@ -345,7 +349,7 @@ function App() {
             <div className="flex items-center gap-2.5">
               <img
                 src={logo}
-                alt="LocalAgent-UI Logo"
+                alt={t("common.logoAlt")}
                 className="w-6 h-6 rounded-md shadow-sm"
               />
               <span className="bg-gradient-to-r from-indigo-300 via-blue-300 to-cyan-300 bg-clip-text text-sm font-semibold tracking-tight text-transparent">
@@ -361,13 +365,13 @@ function App() {
               className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
             >
               <Plus className="size-4" aria-hidden="true" />
-              New Chat
+              {t("sidebar.newChat")}
             </button>
           </div>
 
           <div className="flex items-center justify-between px-4 pb-2 pt-3">
             <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-              Recent sessions
+              {t("sidebar.recentSessions")}
             </h2>
             <span className="text-[11px] tabular-nums text-zinc-600">
               {sessions.length}
@@ -375,14 +379,16 @@ function App() {
           </div>
 
           <nav
-            aria-label="会话历史"
+            aria-label={t("sidebar.recentSessions")}
             className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-3"
           >
             {isLoadingSessions ? (
-              <p className="px-3 py-4 text-xs text-zinc-500">正在加载会话…</p>
+              <p className="px-3 py-4 text-xs text-zinc-500">
+                {t("sidebar.loadingSessions")}
+              </p>
             ) : sessions.length === 0 ? (
               <p className="px-3 py-4 text-xs leading-5 text-zinc-500">
-                还没有会话。创建一个新对话即可开始。
+                {t("sidebar.emptySessions")}
               </p>
             ) : (
               sessions.map((session) => {
@@ -407,16 +413,18 @@ function App() {
                           isCurrent ? "text-zinc-100" : "text-zinc-400"
                         }`}
                       >
-                        {session.title || "新会话"}
+                        {session.title || t("sidebar.newSession")}
                       </span>
                       <span className="mt-1 block text-[10px] text-zinc-600">
-                        {new Date(session.updatedAt).toLocaleDateString()}
+                        {new Date(session.updatedAt).toLocaleDateString(
+                          i18n.resolvedLanguage ?? i18n.language,
+                        )}
                       </span>
                     </button>
                     <button
                       type="button"
-                      aria-label={`删除会话 ${session.title || "新会话"}`}
-                      title="删除会话"
+                      aria-label={`${t("sidebar.delete")} ${session.title || t("sidebar.newSession")}`}
+                      title={t("sidebar.delete")}
                       onClick={(event) =>
                         void handleDeleteSession(event, session.id)
                       }
@@ -432,7 +440,7 @@ function App() {
 
           <div className="border-t border-zinc-800 px-4 py-3">
             <p className="text-[11px] text-zinc-600">
-              会话安全保存在本地 IndexedDB
+              {t("sidebar.localStorageNote")}
             </p>
           </div>
 
@@ -448,10 +456,10 @@ function App() {
             )}
             <div className="flex items-center gap-2 text-[11px] text-zinc-500">
               <span
-                aria-label="Live"
+                aria-label={t("common.liveStatus")}
                 className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]"
               />
-              <span>Created by @real-rain</span>
+              <span>{t("footer.createdBy")}</span>
             </div>
             <div className="mt-2 flex items-center gap-1">
               <a
@@ -498,13 +506,13 @@ function App() {
               </a>
               <button
                 type="button"
-                aria-label="复制 Email 联系邮箱"
+                aria-label={t("footer.copyContact", { email: CONTACT_EMAIL })}
                 onClick={() => void handleCopyContact()}
                 className="group relative grid size-8 cursor-pointer place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
                 <Mail className="size-4" aria-hidden="true" />
                 <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded border border-zinc-800 bg-zinc-900/90 px-2 py-1 text-xs text-zinc-200 shadow-lg backdrop-blur group-hover:block group-focus-visible:block">
-                  Contact: {CONTACT_EMAIL} (Click to Copy)
+                  {t("footer.copyContact", { email: CONTACT_EMAIL })}
                 </span>
               </button>
             </div>
@@ -513,12 +521,20 @@ function App() {
       )}
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="z-10 flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-950/90 px-4 backdrop-blur sm:px-6">
+        <header className="z-10 grid min-h-16 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-zinc-800 bg-zinc-950/90 px-4 backdrop-blur sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              aria-label={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
-              title={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
+              aria-label={
+                isSidebarOpen
+                  ? t("sidebar.collapseSidebar")
+                  : t("sidebar.expandSidebar")
+              }
+              title={
+                isSidebarOpen
+                  ? t("sidebar.collapseSidebar")
+                  : t("sidebar.expandSidebar")
+              }
               onClick={() => setIsSidebarOpen((open) => !open)}
               className="grid size-9 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
             >
@@ -526,19 +542,22 @@ function App() {
             </button>
             <div className="min-w-0">
               <h1 className="truncate text-sm font-medium text-zinc-200">
-                {currentSession?.title || "新会话"}
+                {currentSession?.title || t("sidebar.newSession")}
               </h1>
               <p className="mt-0.5 text-[11px] text-zinc-600">
                 {engineMode === "ollama"
-                  ? "本地 Ollama 推理"
+                  ? t("header.localOllama")
                   : isWebLLMReady
-                    ? "浏览器端 WebGPU 推理"
-                    : "浏览器端模型运行环境"}
+                    ? t("header.browserWebgpu")
+                    : t("header.browserRuntime")}
               </p>
             </div>
           </div>
 
-          <fieldset disabled={isSending} className="shrink-0 border-0 p-0">
+          <fieldset
+            disabled={isSending}
+            className="min-w-0 max-w-[min(50vw,24rem)] justify-self-center border-0 p-0"
+          >
             <ModelSelectorPopover
               selectedEngine={engineMode}
               selectedModel={modelName}
@@ -549,13 +568,22 @@ function App() {
               }
             />
           </fieldset>
+          <button
+            type="button"
+            aria-label={t("common.switchLanguage")}
+            title={t("common.switchLanguage")}
+            onClick={handleLanguageToggle}
+            className="shrink-0 justify-self-end px-2.5 py-1 text-xs rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            {i18n.resolvedLanguage?.startsWith("zh") ? "ZH" : "EN"}
+          </button>
         </header>
 
         <div className="relative min-h-0 flex-1">
           <div
             ref={scrollContainerRef}
             role="region"
-            aria-label="对话消息"
+            aria-label={t("chat.conversationMessages")}
             className="chat-messages-scroll h-full overflow-y-auto px-4 pb-8 pt-6 sm:px-6"
           >
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
@@ -570,31 +598,33 @@ function App() {
               <div className="flex min-h-[52vh] flex-col items-center justify-center py-8 text-center">
                 <img
                   src={logo}
-                  alt="LocalAgent-UI Logo"
+                  alt={t("common.logoAlt")}
                   className="w-12 h-12 mb-3 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
                 />
                 <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
-                  Welcome to LocalAgent-UI
+                  {t("chat.welcomeTitle")}
                 </h2>
                 <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
-                  Lightweight, Local-First AI Agent Workbench running 100% in your browser.
+                  {t("chat.welcomeDescription")}
                 </p>
                 <div className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-3 px-4 md:grid-cols-2">
                   {starterSuggestions.map((suggestion) => (
                     <button
-                      key={suggestion.category}
+                      key={suggestion.id}
                       type="button"
-                      onClick={() => setInput(suggestion.prompt)}
+                      onClick={() =>
+                        setInput(t(`starterCards.${suggestion.id}.prompt`))
+                      }
                       className="group flex cursor-pointer flex-col justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-left transition-all hover:border-zinc-700/80 hover:bg-zinc-800/80 hover:shadow-lg hover:shadow-indigo-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                     >
                       <span className="w-fit rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-400 transition-colors group-hover:text-indigo-300">
-                        {suggestion.category}
+                        {t(`starterCards.${suggestion.id}.tag`)}
                       </span>
                       <span className="mt-2 text-sm font-semibold text-zinc-200 transition-colors group-hover:text-zinc-100">
-                        {suggestion.title}
+                        {t(`starterCards.${suggestion.id}.title`)}
                       </span>
                       <span className="mt-1 line-clamp-2 text-xs font-medium text-zinc-300 group-hover:text-zinc-100">
-                        {suggestion.prompt}
+                        {t(`starterCards.${suggestion.id}.description`)}
                       </span>
                       <ArrowUpRight className="ml-auto mt-2 h-3.5 w-3.5 text-zinc-500 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-indigo-400" aria-hidden="true" />
                     </button>
@@ -619,12 +649,12 @@ function App() {
           {!isAtBottom && isStreaming && (
             <div className="absolute bottom-4 right-5 z-20 flex items-center gap-2">
               <span className="rounded-full border border-zinc-700/80 bg-zinc-900/95 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-lg shadow-black/30 backdrop-blur">
-                New messages...
+                {t("chat.newMessages")}
               </span>
               <button
                 type="button"
-                aria-label="滚动到最新消息"
-                title="滚动到最新消息"
+                aria-label={t("chat.scrollToLatest")}
+                title={t("chat.scrollToLatest")}
                 onClick={scrollToBottom}
                 className="grid size-10 place-items-center rounded-full border border-zinc-700 bg-zinc-800/95 text-zinc-100 shadow-lg shadow-black/30 transition hover:border-violet-400/50 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
@@ -640,7 +670,7 @@ function App() {
             className="mx-auto flex w-full max-w-4xl items-end gap-3 rounded-xl border border-zinc-800 bg-zinc-900/80 p-2 shadow-xl shadow-black/20 transition focus-within:border-zinc-700"
           >
             <label className="sr-only" htmlFor="chat-input">
-              输入消息
+              {t("chat.messageLabel")}
             </label>
             <textarea
               id="chat-input"
@@ -659,12 +689,12 @@ function App() {
               }}
               placeholder={
                 !modelName
-                  ? "请先从右上角选择一个可用模型..."
+                  ? t("chat.selectModelPlaceholder")
                   : engineMode === "webgpu" && !isWebLLMReady
                     ? isWebLLMLoading
-                      ? "WebGPU 模型加载中，请稍候..."
-                      : "请先加载 WebGPU 端侧模型..."
-                    : "Message your agent…"
+                      ? t("chat.webgpuLoadingPlaceholder")
+                      : t("chat.webgpuReadyPlaceholder")
+                    : t("chat.messagePlaceholder")
               }
               rows={1}
               disabled={
@@ -674,7 +704,8 @@ function App() {
             />
             <button
               type="submit"
-              aria-label="发送消息"
+              aria-label={t("common.send")}
+              title={t("common.send")}
               disabled={
                 !input.trim() ||
                 !modelName ||
@@ -689,8 +720,9 @@ function App() {
           <p className="mx-auto mt-2 max-w-4xl text-center text-[10px] text-zinc-600">
             {engineMode === "ollama"
               ? "Ollama · localhost:11434"
-              : "WebGPU · 模型仅在浏览器本地运行"}
-            {"  ·  "}Enter 发送，Shift + Enter 换行
+              : t("chat.localWebgpuRuntime")}
+            {"  ·  "}
+            {t("chat.sendHint")}
           </p>
         </footer>
       </section>

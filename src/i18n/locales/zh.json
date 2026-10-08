@@ -1,0 +1,138 @@
+{
+  "common": {
+    "clear": "清空",
+    "copy": "复制",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "close": "关闭",
+    "retry": "重试",
+    "send": "发送",
+    "cancel": "取消",
+    "language": "语言",
+    "switchLanguage": "切换到另一种语言",
+    "logoAlt": "LocalAgent-UI 标志",
+    "liveStatus": "运行中",
+    "english": "English",
+    "chinese": "中文"
+  },
+  "header": {
+    "engines": {
+      "webgpu": "WebGPU",
+      "ollama": "Ollama"
+    },
+    "status": {
+      "ready": "就绪",
+      "loading": "加载中",
+      "offline": "离线"
+    },
+    "selectModel": "选择模型",
+    "localOllama": "本地 Ollama 推理",
+    "browserWebgpu": "浏览器端 WebGPU 推理",
+    "browserRuntime": "浏览器端模型运行环境"
+  },
+  "sidebar": {
+    "recentSessions": "最近会话",
+    "newChat": "新建会话",
+    "delete": "删除",
+    "settings": "设置",
+    "loadingSessions": "正在加载会话…",
+    "emptySessions": "还没有会话。创建一个新对话即可开始。",
+    "newSession": "新会话",
+    "collapseSidebar": "收起侧边栏",
+    "expandSidebar": "展开侧边栏",
+    "localStorageNote": "会话安全保存在本地 IndexedDB"
+  },
+  "starterCards": {
+    "livePreview": {
+      "tag": "实时预览",
+      "title": "🎨 Web 组件预览",
+      "description": "创建交互式 Web 组件并即时预览效果。",
+      "prompt": "用 HTML/CSS/JS 编写一个带 3D 翻转效果与粒子微交互的卡片组件。"
+    },
+    "cotReasoning": {
+      "tag": "思维链推理",
+      "title": "🧠 思维链推演",
+      "description": "逐步分析算法，并比较不同排序算法的复杂度。",
+      "prompt": "详细分析并推导快速排序算法的时间复杂度，对比归并排序与堆排序。"
+    },
+    "toolCalling": {
+      "tag": "工具调用",
+      "title": "🔧 Agent 工具执行",
+      "description": "检查沙盒环境，并使用工具计算一个数列。",
+      "prompt": "检查当前沙盒 JavaScript 执行环境，并使用工具计算 1 到 1000 的斐波那契数列。"
+    },
+    "quickAnswer": {
+      "tag": "快速解答",
+      "title": "⚡ Local WebGPU 基准",
+      "description": "简明了解本地优先 AI 与云端大语言模型的差异。",
+      "prompt": "请用不超过 100 字总结 Local-First AI Agent 相比传统云端大语言模型的 3 大核心优势。"
+    }
+  },
+  "chat": {
+    "messagePlaceholder": "给你的 Agent 发送消息…",
+    "deepThinking": "深度思考中...",
+    "thoughtProcess": "思考过程",
+    "messageLabel": "消息",
+    "conversationMessages": "对话消息",
+    "thoughtFor": "已思考 {{seconds}} 秒",
+    "continuingThinking": "正在持续推演",
+    "thinkingPrompts": [
+      "正在分析需求上下文...",
+      "正在构思代码结构...",
+      "正在推演解决方案..."
+    ],
+    "code": "代码",
+    "preview": "预览",
+    "newMessages": "有新消息...",
+    "scrollToLatest": "滚动到最新消息",
+    "localWebgpuRuntime": "WebGPU · 模型仅在浏览器本地运行",
+    "sendHint": "按 Enter 发送，Shift + Enter 换行",
+    "welcomeTitle": "欢迎使用 LocalAgent-UI",
+    "welcomeDescription": "轻量、本地优先的 AI Agent 工作台，完全运行在浏览器中。",
+    "selectModelPlaceholder": "请先从右上角选择一个可用模型…",
+    "webgpuLoadingPlaceholder": "WebGPU 模型加载中，请稍候…",
+    "webgpuReadyPlaceholder": "请先加载 WebGPU 端侧模型…",
+    "runtimeMonitor": "LocalAgent · 运行状态监控",
+    "localInference": "本地推理 · WebGPU",
+    "acceleratedEngineInitializing": "WebGPU 加速引擎正在初始化...",
+    "modelDownload": "模型下载",
+    "waitingForRuntime": "等待 WebGPU 运行环境...",
+    "firstLoadNote": "首次加载时会将模型权重缓存到浏览器，后续启动无需重新下载。",
+    "initializingModel": "正在初始化 WebGPU 模型…",
+    "retryWebgpu": "重试 WebGPU 初始化",
+    "codeCopied": "代码已复制",
+    "copyCode": "复制代码",
+    "copyCodeError": "无法复制代码，请手动复制。",
+    "artifactView": "代码产物视图",
+    "previewTitle": "{{title}} 预览",
+    "agentDeepThinking": "Agent 深度思考"
+  },
+  "errors": {
+    "webgpuInitializationFailed": "WebGPU 模型初始化失败。",
+    "loadSessions": "无法加载本地会话。",
+    "createSession": "无法创建新会话。",
+    "switchSession": "无法切换会话。",
+    "deleteSession": "无法删除会话。",
+    "selectModel": "请先从右上角选择一个可用模型。",
+    "webgpuUnavailable": "WebGPU 引擎初始化后不可用。",
+    "unknownModelCommunication": "与模型通信时发生未知错误。"
+  },
+  "modelSelector": {
+    "localEndpoints": "本地服务",
+    "checkingOllama": "正在检查 Ollama…",
+    "noOllamaModels": "没有可用模型（请先执行 ollama pull）",
+    "reconnect": "点击重连",
+    "inBrowserWebgpu": "浏览器端 WEBGPU",
+    "loadingWebgpuModels": "正在加载 WebGPU 模型列表…",
+    "noChatModels": "当前没有可用的文本对话模型。",
+    "unsupportedWebgpu": "浏览器不支持 WebGPU",
+    "modelSwitchDuringLoad": "WebGPU 模型加载期间无法切换模型",
+    "ollamaConnectionError": "无法连接到 Ollama 服务，请先在终端运行 ollama serve。"
+  },
+  "footer": {
+    "createdBy": "由 @real-rain 创建",
+    "copyContact": "联系邮箱：{{email}}（点击复制）",
+    "copiedContact": "已复制联系邮箱 {{email}}！",
+    "copyContactFailed": "复制失败：请检查浏览器剪贴板权限。"
+  }
+}
