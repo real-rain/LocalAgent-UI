@@ -86,6 +86,11 @@ export class StreamParser {
             break;
         }
 
+        if (flush) {
+            this.inThinkBlock = false;
+            this.buffer = "";
+        }
+
         return chunks;
     }
 

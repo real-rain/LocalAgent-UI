@@ -12,13 +12,17 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     const { t } = useTranslation();
     const thoughtProcess = message.thoughtProcess ?? "";
     const isStreaming = message.status === "streaming";
-    const shouldRender = isStreaming || Boolean(thoughtProcess.trim());
+    const hasThoughtProcess = Boolean(thoughtProcess.trim());
+    const hasMessageContent = Boolean(message.content.trim());
     const [isExpanded, setIsExpanded] = useState(
         Boolean(thoughtProcess) || isStreaming,
     );
     const [promptIndex, setPromptIndex] = useState(0);
     const [displayedThought, setDisplayedThought] = useState("");
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [placeholderTimedOutFor, setPlaceholderTimedOutFor] = useState<
+        string | null
+    >(null);
     const contentId = useId();
     const startedAtRef = useRef(0);
     const displayedLengthRef = useRef(0);
@@ -31,6 +35,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     useEffect(() => {
         if (!isStreaming) return;
 
+        startedAtRef.current = Date.now();
         const timer = window.setInterval(() => {
             const target = latestThoughtRef.current;
             if (displayedLengthRef.current < target.length) {
@@ -45,9 +50,15 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     }, [isStreaming]);
 
     useEffect(() => {
-        if (!isStreaming) return;
+        if (!isStreaming) {
+            if (startedAtRef.current) {
+                setElapsedSeconds(
+                    Math.floor((Date.now() - startedAtRef.current) / 1000),
+                );
+            }
+            return;
+        }
 
-        startedAtRef.current = Date.now();
         const timer = window.setInterval(() => {
             setElapsedSeconds(
                 Math.floor((Date.now() - startedAtRef.current) / 1000),
@@ -58,18 +69,36 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     }, [isStreaming]);
 
     useEffect(() => {
-        if (!isStreaming || thoughtProcess) return;
+        if (!isStreaming || !hasMessageContent || hasThoughtProcess) return;
+
+        const timer = window.setTimeout(() => {
+            setPlaceholderTimedOutFor(message.id);
+        }, 5000);
+
+        return () => window.clearTimeout(timer);
+    }, [
+        hasMessageContent,
+        hasThoughtProcess,
+        isStreaming,
+        message.id,
+        thoughtProcess,
+    ]);
+
+    useEffect(() => {
+        if (!isStreaming || hasThoughtProcess) return;
 
         const timer = window.setInterval(() => {
             setPromptIndex((index) => (index + 1) % 3);
         }, 2400);
 
         return () => window.clearInterval(timer);
-    }, [isStreaming, thoughtProcess]);
+    }, [hasThoughtProcess, isStreaming]);
 
-    if (!shouldRender) return null;
+    if (!isStreaming && !hasThoughtProcess) return null;
 
-    if (!thoughtProcess.trim()) {
+    const placeholderTimedOut = placeholderTimedOutFor === message.id;
+
+    if (!hasThoughtProcess && !placeholderTimedOut) {
         return (
             <motion.section
                 initial={{ opacity: 0, y: 4 }}
@@ -107,6 +136,8 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
             </motion.section>
         );
     }
+
+    if (!hasThoughtProcess) return null;
 
     return (
         <motion.section

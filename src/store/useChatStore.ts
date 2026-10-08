@@ -67,20 +67,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   appendStreamChunk: (id, chunk) =>
     set((state) => {
-      const index = state.messages.findIndex((message) => message.id === id);
-      if (index < 0) return state;
+      let messageFound = false;
+      const messages = state.messages.map((message) => {
+        if (message.id !== id) return message;
 
-      const messages = [...state.messages];
-      messages[index] = {
-        ...messages[index],
-        ...(chunk.type === "thought_delta"
+        messageFound = true;
+        return chunk.type === "thought_delta"
           ? {
-              thoughtProcess:
-                (messages[index].thoughtProcess ?? "") + chunk.content,
+              ...message,
+              thoughtProcess: (message.thoughtProcess ?? "") + chunk.content,
             }
-          : { content: messages[index].content + chunk.content }),
-      };
-      return { messages };
+          : { ...message, content: message.content + chunk.content };
+      });
+
+      return messageFound ? { messages } : state;
     }),
   setStreamingComplete: async (id) => {
     const message = get().messages.find(
