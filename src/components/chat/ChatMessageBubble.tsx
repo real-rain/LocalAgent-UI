@@ -166,8 +166,8 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
                 {isAssistant && message.thoughtProcess && (
                     <div className="chat-message__section">
                         <ThoughtAccordion
-                            thoughtText={message.thoughtProcess}
-                            isStreaming={isStreaming}
+                            thoughtProcess={message.thoughtProcess}
+                            status={message.status}
                         />
                     </div>
                 )}

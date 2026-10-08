@@ -9,7 +9,6 @@ import {
 import {
   ArrowDown,
   ArrowUpRight,
-  Cpu,
   Mail,
   Plus,
   Send,
@@ -17,10 +16,12 @@ import {
   Trash2,
 } from "lucide-react";
 import githubIcon from "./assets/GitHub.svg";
+import logo from "./assets/logo.svg";
 import telegramIcon from "./assets/telegram.svg";
 import twitterIcon from "./assets/tuite-copy.svg";
 import ChatMessageBubble from "./components/chat/ChatMessageBubble";
 import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
+import { WebGPULoaderCard } from "./components/chat/WebGPULoaderCard";
 import { OllamaProvider } from "./core/providers/OllamaProvider";
 import { useAutoScroll } from "./hooks/useAutoScroll";
 import { useChatStore } from "./store/useChatStore";
@@ -76,12 +77,14 @@ function App() {
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isWebLLMLoading, setIsWebLLMLoading] = useState(false);
-  const [isWebLLMReady, setIsWebLLMReady] = useState(false);
+  const [webLLMReadyModel, setWebLLMReadyModel] = useState<string | null>(null);
   const [webLLMProgress, setWebLLMProgress] = useState("");
   const [engineError, setEngineError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isWebLLMReady =
+    engineMode === "webgpu" && webLLMReadyModel === modelName;
   const isStreaming = messages.some((message) => message.status === "streaming");
   const {
     scrollRef: scrollContainerRef,
@@ -106,39 +109,31 @@ function App() {
     }
   }
 
-  const initializeWebGPU = useCallback((modelId: string): Promise<void> => {
+  const handleInitWebLLM = useCallback((): Promise<void> => {
+    if (!modelName) return Promise.resolve();
+
     if (webGPUInitializationRef.current) {
       return webGPUInitializationRef.current;
     }
 
     setEngineError(null);
-    setWebLLMProgress("正在准备 WebGPU 模型…");
+    setWebLLMProgress("Initializing WebGPU Engine...");
     setIsWebLLMLoading(true);
-    setIsWebLLMReady(false);
 
     const initialization = import("./core/providers/WebLLMProvider")
       .then(({ WebLLMProvider: Provider }) => {
         webLLMProvider ??= new Provider();
-        return webLLMProvider.initEngine(modelId, (progress) => {
-          setWebLLMProgress(progress);
-          const percentage = Number(
-            progress.match(/(\d+(?:\.\d+)?)\s*%/)?.[1] ?? 0,
-          );
-          if (percentage >= 100) {
-            setIsWebLLMReady(true);
-            inputRef.current?.focus();
-          }
+        return webLLMProvider.initEngine(modelName, (report) => {
+          setWebLLMProgress(report);
         });
       })
       .then(() => {
-        setIsWebLLMReady(true);
-        inputRef.current?.focus();
+        setWebLLMReadyModel(modelName);
       })
       .catch((cause: unknown) => {
         const message =
           cause instanceof Error ? cause.message : "WebGPU 模型初始化失败。";
         setEngineError(message);
-        setIsWebLLMReady(false);
         throw cause;
       })
       .finally(() => {
@@ -148,16 +143,32 @@ function App() {
 
     webGPUInitializationRef.current = initialization;
     return initialization;
-  }, []);
+  }, [modelName]);
 
   function handleEngineChange(nextEngine: Engine, nextModel: string) {
     setEngineMode(nextEngine);
     setModelName(nextModel);
     setEngineError(null);
-    if (nextEngine === "webgpu") {
-      setIsWebLLMReady(false);
-    }
   }
+
+  useEffect(() => {
+    if (
+      engineMode === "webgpu" &&
+      modelName &&
+      !isWebLLMReady &&
+      !isWebLLMLoading &&
+      !engineError
+    ) {
+      void handleInitWebLLM().catch(() => undefined);
+    }
+  }, [
+    engineMode,
+    modelName,
+    isWebLLMReady,
+    isWebLLMLoading,
+    engineError,
+    handleInitWebLLM,
+  ]);
 
   useEffect(() => {
     let isActive = true;
@@ -278,7 +289,7 @@ function App() {
         .messages.filter((message) => message.id !== assistantMessageId)
         .map(({ role, content: text }) => ({ role, content: text }));
       if (engineMode === "webgpu") {
-        await initializeWebGPU(modelName);
+        await handleInitWebLLM();
         if (!webLLMProvider) {
           throw new Error("WebGPU 引擎初始化后不可用。");
         }
@@ -287,11 +298,7 @@ function App() {
           conversation,
           controller.signal,
         )) {
-          appendStreamChunk(
-            assistantMessageId,
-            chunk.content,
-            chunk.type === "thought_delta",
-          );
+          appendStreamChunk(assistantMessageId, chunk);
         }
       } else {
         const ollamaProvider = new OllamaProvider(modelName);
@@ -337,7 +344,7 @@ function App() {
           <div className="flex h-16 items-center justify-between border-b border-zinc-800 px-4">
             <div className="flex items-center gap-2.5">
               <img
-                src={`${import.meta.env.BASE_URL}logo.svg`}
+                src={logo}
                 alt="LocalAgent-UI Logo"
                 className="w-6 h-6 rounded-md shadow-sm"
               />
@@ -531,10 +538,7 @@ function App() {
             </div>
           </div>
 
-          <fieldset
-            disabled={isSending || isWebLLMLoading}
-            className="shrink-0 border-0 p-0"
-          >
+          <fieldset disabled={isSending} className="shrink-0 border-0 p-0">
             <ModelSelectorPopover
               selectedEngine={engineMode}
               selectedModel={modelName}
@@ -555,10 +559,17 @@ function App() {
             className="chat-messages-scroll h-full overflow-y-auto px-4 pb-8 pt-6 sm:px-6"
           >
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-            {messages.length === 0 ? (
+            {engineMode === "webgpu" && !isWebLLMReady ? (
+              <WebGPULoaderCard
+                progress={webLLMProgress}
+                isLoading={isWebLLMLoading}
+                error={engineError}
+                onRetry={() => void handleInitWebLLM().catch(() => undefined)}
+              />
+            ) : messages.length === 0 ? (
               <div className="flex min-h-[52vh] flex-col items-center justify-center py-8 text-center">
                 <img
-                  src={`${import.meta.env.BASE_URL}logo.svg`}
+                  src={logo}
                   alt="LocalAgent-UI Logo"
                   className="w-12 h-12 mb-3 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
                 />
@@ -589,121 +600,6 @@ function App() {
                     </button>
                   ))}
                 </div>
-              </div>
-            ) : engineMode === "webgpu" && !isWebLLMReady ? (
-              <div className="flex min-h-[52vh] items-center justify-center px-4 py-8">
-                <section
-                  aria-label="WebGPU 模型初始化"
-                  className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-blue-500/20 bg-zinc-900/70 p-6 shadow-[0_0_70px_-24px_rgba(37,99,235,0.55)] sm:p-8"
-                >
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-blue-500/10 blur-3xl"
-                  />
-                  <div className="relative">
-                    <div className="flex items-start gap-4">
-                      <div className="relative grid size-12 shrink-0 place-items-center">
-                        {isWebLLMLoading && (
-                          <span
-                            aria-hidden="true"
-                            className="absolute inset-0 animate-ping rounded-2xl bg-blue-500/15"
-                          />
-                        )}
-                        <span className="absolute inset-0 rounded-2xl border border-blue-400/30 bg-blue-500/10 shadow-[0_0_28px_rgba(37,99,235,0.2)]" />
-                        <Cpu
-                          className={`relative size-5 text-blue-300 ${
-                            isWebLLMLoading ? "animate-spin" : ""
-                          }`}
-                          aria-hidden="true"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-300/80">
-                          Local inference · WebGPU
-                        </p>
-                        <h2 className="mt-2 text-sm font-semibold tracking-wide text-zinc-100">
-                          WebGPU Accelerated Engine Initializing...
-                        </h2>
-                        <p className="mt-1.5 text-xs leading-5 text-zinc-500">
-                          {isWebLLMLoading
-                            ? webLLMProgress || "正在准备端侧模型…"
-                            : engineError
-                              ? "初始化未完成，请重试。"
-                              : "启动端侧模型后，即可在浏览器本地进行推理。"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-7">
-                      <div className="mb-2 flex items-center justify-between text-[10px] font-medium uppercase tracking-wider">
-                        <span className="text-zinc-500">Model download</span>
-                        <span className="tabular-nums text-blue-300">
-                          {Number(
-                            webLLMProgress.match(/(\d+(?:\.\d+)?)\s*%/)?.[1] ??
-                              0,
-                          ).toFixed(0)}
-                          %
-                        </span>
-                      </div>
-                      <div
-                        className="h-1.5 overflow-hidden rounded-full bg-zinc-800"
-                        role="progressbar"
-                        aria-label="WebGPU 模型加载进度"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.min(
-                          100,
-                          Number(
-                            webLLMProgress.match(
-                              /(\d+(?:\.\d+)?)\s*%/,
-                            )?.[1] ?? 0,
-                          ),
-                        )}
-                      >
-                        <div
-                          className="h-full rounded-full bg-blue-600 transition-all duration-300"
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              Number(
-                                webLLMProgress.match(
-                                  /(\d+(?:\.\d+)?)\s*%/,
-                                )?.[1] ?? (isWebLLMLoading ? 8 : 0),
-                              ),
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {engineError && (
-                      <p role="alert" className="mt-4 text-xs text-red-300">
-                        WebGPU 初始化失败：{engineError}
-                      </p>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void initializeWebGPU(modelName).catch(() => undefined)
-                      }
-                      disabled={isWebLLMLoading}
-                      className="mt-6 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-blue-400/30 bg-blue-600 px-4 text-xs font-semibold tracking-wide text-white shadow-lg shadow-blue-950/30 transition hover:border-blue-300/50 hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {isWebLLMLoading ? (
-                        <Cpu
-                          className="size-4 animate-spin"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Cpu className="size-4" aria-hidden="true" />
-                      )}
-                      {isWebLLMLoading
-                        ? "Initializing WebGPU Model…"
-                        : "Initialize WebGPU Model"}
-                    </button>
-                  </div>
-                </section>
               </div>
             ) : (
               messages.map((message) => (

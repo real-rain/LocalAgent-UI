@@ -1,4 +1,5 @@
 import { CODE_FORMATTING_SYSTEM_PROMPT } from "./systemPrompt";
+import { StreamParser, type StreamChunk } from "../parser/StreamParser";
 
 export interface OllamaMessage {
   role: "user" | "assistant" | "system";
@@ -6,7 +7,11 @@ export interface OllamaMessage {
 }
 
 interface OllamaStreamResponse {
-  message?: { content?: string };
+  message?: {
+    content?: string;
+    reasoning_content?: string;
+    thinking?: string;
+  };
   done?: boolean;
   error?: string;
 }
@@ -23,7 +28,7 @@ export class OllamaProvider {
   async *chatStream(
     messages: OllamaMessage[],
     signal?: AbortSignal,
-  ): AsyncGenerator<string> {
+  ): AsyncGenerator<StreamChunk> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -51,9 +56,10 @@ export class OllamaProvider {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    const parser = new StreamParser();
     let buffer = "";
 
-    function readLine(line: string): string | undefined {
+    function readLine(line: string): OllamaStreamResponse | undefined {
       if (!line.trim()) return undefined;
 
       let data: OllamaStreamResponse;
@@ -64,7 +70,16 @@ export class OllamaProvider {
       }
 
       if (data.error) throw new Error(data.error);
-      return data.message?.content;
+      return data;
+    }
+
+    function parseResponse(data: OllamaStreamResponse): StreamChunk[] {
+      return [
+        ...parser.parseReasoning(
+          data.message?.reasoning_content ?? data.message?.thinking ?? "",
+        ),
+        ...parser.parse(data.message?.content ?? ""),
+      ];
     }
 
     try {
@@ -75,13 +90,17 @@ export class OllamaProvider {
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
         for (const line of lines) {
-          const chunk = readLine(line);
-          if (chunk) yield chunk;
+          const data = readLine(line);
+          if (!data) continue;
+          for (const chunk of parseResponse(data)) yield chunk;
         }
 
         if (done) {
-          const chunk = readLine(buffer);
-          if (chunk) yield chunk;
+          const data = readLine(buffer);
+          if (data) {
+            for (const chunk of parseResponse(data)) yield chunk;
+          }
+          for (const chunk of parser.flush()) yield chunk;
           break;
         }
       }

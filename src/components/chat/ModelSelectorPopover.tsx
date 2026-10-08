@@ -282,7 +282,11 @@ export function ModelSelectorPopover({
                             const isSelected =
                                 selectedEngine === 'webgpu' &&
                                 selectedModel === option.model;
-                            const isDisabled = !webgpuStatus.isSupported;
+                            const isDisabled =
+                                !webgpuStatus.isSupported ||
+                                (isWebLLMLoading &&
+                                    !(selectedEngine === 'webgpu' &&
+                                        selectedModel === option.model));
 
                             return (
                                 <button
@@ -291,7 +295,13 @@ export function ModelSelectorPopover({
                                     role="option"
                                     aria-selected={isSelected}
                                     aria-disabled={isDisabled}
-                                    title={isDisabled ? '浏览器不支持 WebGPU' : option.model}
+                                    title={
+                                        !webgpuStatus.isSupported
+                                            ? '浏览器不支持 WebGPU'
+                                            : isWebLLMLoading
+                                              ? 'WebGPU 模型加载期间无法切换模型'
+                                              : option.model
+                                    }
                                     disabled={isDisabled}
                                     onClick={() => {
                                         onSelectEngine('webgpu', option.model);

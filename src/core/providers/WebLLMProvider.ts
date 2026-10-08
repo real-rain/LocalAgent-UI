@@ -12,64 +12,14 @@ import {
     CreateWebWorkerMLCEngine,
     type MLCEngine,
 } from "@mlc-ai/web-llm";
+import { StreamParser, type StreamChunk } from "../parser/StreamParser";
 import type { Message } from "../../types/chat";
 import { CODE_FORMATTING_SYSTEM_PROMPT } from "./systemPrompt";
 
-export interface StreamChunk {
-    type: "thought_delta" | "text_delta";
-    content: string;
-}
+export type { StreamChunk } from "../parser/StreamParser";
 
 const WEBGPU_UNSUPPORTED_MESSAGE =
     "当前浏览器或设备不支持 WebGPU，无法运行本地模型。请使用支持 WebGPU 的最新版浏览器和设备。";
-
-class StreamParser {
-    private isThinking = false;
-    private buffer = "";
-
-    parse(value: string): StreamChunk[] {
-        this.buffer += value;
-        const chunks: StreamChunk[] = [];
-
-        while (this.buffer.length > 0) {
-            const marker = this.isThinking ? "</think>" : "<think>";
-            const markerIndex = this.buffer.indexOf(marker);
-
-            if (markerIndex >= 0) {
-                this.pushChunk(chunks, this.buffer.slice(0, markerIndex));
-                this.buffer = this.buffer.slice(markerIndex + marker.length);
-                this.isThinking = !this.isThinking;
-                continue;
-            }
-
-            const possibleMarkerLength = marker.length - 1;
-            const textLength = Math.max(0, this.buffer.length - possibleMarkerLength);
-            if (textLength > 0) {
-                this.pushChunk(chunks, this.buffer.slice(0, textLength));
-                this.buffer = this.buffer.slice(textLength);
-            }
-            break;
-        }
-
-        return chunks;
-    }
-
-    flush(): StreamChunk[] {
-        const chunks: StreamChunk[] = [];
-        this.pushChunk(chunks, this.buffer);
-        this.buffer = "";
-        return chunks;
-    }
-
-    private pushChunk(chunks: StreamChunk[], content: string): void {
-        if (content) {
-            chunks.push({
-                type: this.isThinking ? "thought_delta" : "text_delta",
-                content,
-            });
-        }
-    }
-}
 
 export class WebLLMProvider {
     engine: MLCEngine | null = null;
@@ -149,7 +99,19 @@ export class WebLLMProvider {
                 return;
             }
 
-            const content = chunk.choices[0]?.delta.content;
+            const delta = chunk.choices[0]?.delta;
+            const reasoningContent =
+                delta && "reasoning_content" in delta &&
+                typeof delta.reasoning_content === "string"
+                    ? delta.reasoning_content
+                    : undefined;
+            if (reasoningContent) {
+                for (const parsedChunk of parser.parseReasoning(reasoningContent)) {
+                    yield parsedChunk;
+                }
+            }
+
+            const content = delta?.content;
             if (!content) continue;
 
             for (const parsedChunk of parser.parse(content)) {

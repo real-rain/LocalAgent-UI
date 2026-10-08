@@ -11,55 +11,54 @@
 import { useId, useState } from "react";
 import { motion } from "framer-motion";
 import { Brain, ChevronDown } from "lucide-react";
+import type { MessageStatus } from "../../types/chat";
 
 interface ThoughtAccordionProps {
-    thoughtText: string;
-    isStreaming: boolean;
-    durationSeconds?: number;
+    thoughtProcess: string;
+    status?: MessageStatus;
 }
 
 export function ThoughtAccordion({
-    thoughtText,
-    isStreaming,
-    durationSeconds,
+    thoughtProcess,
+    status,
 }: ThoughtAccordionProps) {
-    return (
-        <ThoughtAccordionContent
-            key={isStreaming ? "streaming" : "complete"}
-            thoughtText={thoughtText}
-            isStreaming={isStreaming}
-            durationSeconds={durationSeconds}
-        />
-    );
-}
-
-function ThoughtAccordionContent({
-    thoughtText,
-    isStreaming,
-    durationSeconds,
-}: ThoughtAccordionProps) {
-    const [isOpen, setIsOpen] = useState(isStreaming);
+    const isStreaming = status === "streaming";
+    const [isExpanded, setIsExpanded] = useState(isStreaming);
     const contentId = useId();
 
     return (
-        <section className="rounded-lg bg-gray-100/70 p-3 text-xs text-gray-700 dark:bg-gray-800/40 dark:text-gray-300">
+        <section className="rounded-lg border border-zinc-800/80 bg-zinc-900/50 p-3">
             <button
                 type="button"
                 className="flex w-full items-center gap-2 text-left"
-                aria-expanded={isOpen}
+                aria-expanded={isExpanded}
                 aria-controls={contentId}
                 onClick={() => {
                     if (!isStreaming) {
-                        setIsOpen((open) => !open);
+                        setIsExpanded((expanded) => !expanded);
                     }
                 }}
             >
                 {isStreaming ? (
                     <>
-                        <Brain className="size-4 shrink-0" aria-hidden="true" />
-                        <span>Thinking...</span>
+                        <Brain
+                            className="size-4 shrink-0 text-zinc-400"
+                            aria-hidden="true"
+                        />
                         <motion.span
-                            className="size-1.5 rounded-full bg-current"
+                            className="overflow-hidden whitespace-nowrap font-mono text-xs text-zinc-400"
+                            aria-label="Reasoning..."
+                            animate={{ width: ["0ch", "12ch", "0ch"] }}
+                            transition={{
+                                duration: 1.8,
+                                repeat: Infinity,
+                                ease: "linear",
+                            }}
+                        >
+                            Reasoning...
+                        </motion.span>
+                        <motion.span
+                            className="size-1.5 shrink-0 rounded-full bg-emerald-400"
                             aria-hidden="true"
                             animate={{ opacity: [0.25, 1, 0.25] }}
                             transition={{ duration: 1.2, repeat: Infinity }}
@@ -67,9 +66,11 @@ function ThoughtAccordionContent({
                     </>
                 ) : (
                     <>
-                        <span>Thought for {durationSeconds || 0}s</span>
+                        <span className="font-mono text-xs text-zinc-400">
+                            Thought process
+                        </span>
                         <ChevronDown
-                            className={`ml-auto size-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+                            className={`ml-auto size-4 shrink-0 text-zinc-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
                                 }`}
                             aria-hidden="true"
                         />
@@ -81,14 +82,16 @@ function ThoughtAccordionContent({
                 id={contentId}
                 initial={false}
                 animate={{
-                    height: isOpen ? "auto" : 0,
-                    opacity: isOpen ? 1 : 0,
+                    height: isExpanded ? "auto" : 0,
+                    opacity: isExpanded ? 1 : 0,
                 }}
                 transition={{ duration: 0.25, ease: "easeInOut" }}
                 className="overflow-hidden"
-                aria-hidden={!isOpen}
+                aria-hidden={!isExpanded}
             >
-                <div className="whitespace-pre-wrap break-words pt-2">{thoughtText}</div>
+                <div className="whitespace-pre-wrap break-words pt-2 font-mono text-xs text-zinc-400">
+                    {thoughtProcess}
+                </div>
             </motion.div>
         </section>
     );

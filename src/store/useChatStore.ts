@@ -8,6 +8,7 @@ import {
   type Session,
 } from "../db/indexedDB";
 import type { Message } from "../types/chat";
+import type { StreamChunk } from "../core/parser/StreamParser";
 
 interface ChatState {
   sessions: Session[];
@@ -18,7 +19,7 @@ interface ChatState {
   createNewSession: (model?: string) => Promise<Session>;
   deleteSession: (sessionId: string) => Promise<void>;
   addMessage: (message: Message) => Promise<void>;
-  appendStreamChunk: (id: string, chunk: string, isThought?: boolean) => void;
+  appendStreamChunk: (id: string, chunk: StreamChunk) => void;
   setStreamingComplete: (id?: string) => Promise<void>;
   setStreamingFailed: () => void;
   clearMessages: () => void;
@@ -64,7 +65,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({ messages: [...state.messages, message] }));
     await saveMessage(message);
   },
-  appendStreamChunk: (id, chunk, isThought = false) =>
+  appendStreamChunk: (id, chunk) =>
     set((state) => {
       const index = state.messages.findIndex((message) => message.id === id);
       if (index < 0) return state;
@@ -72,9 +73,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const messages = [...state.messages];
       messages[index] = {
         ...messages[index],
-        ...(isThought
-          ? { thoughtProcess: (messages[index].thoughtProcess ?? "") + chunk }
-          : { content: messages[index].content + chunk }),
+        ...(chunk.type === "thought_delta"
+          ? {
+              thoughtProcess:
+                (messages[index].thoughtProcess ?? "") + chunk.content,
+            }
+          : { content: messages[index].content + chunk.content }),
       };
       return { messages };
     }),
