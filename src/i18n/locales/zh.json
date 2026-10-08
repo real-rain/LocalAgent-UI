@@ -74,8 +74,8 @@
     "thoughtProcess": "思考过程",
     "messageLabel": "消息",
     "conversationMessages": "对话消息",
-    "thoughtFor": "已思考 {{seconds}} 秒",
-    "continuingThinking": "正在持续推演",
+    "thinkingElapsed": "思考中... ({{seconds}}秒)",
+    "thoughtFor": "思考耗时 {{seconds}}秒",
     "thinkingPrompts": [
       "正在分析需求上下文...",
       "正在构思代码结构...",

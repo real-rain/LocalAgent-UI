@@ -21,8 +21,78 @@ interface ChatState {
   addMessage: (message: Message) => Promise<void>;
   appendStreamChunk: (id: string, chunk: StreamChunk) => void;
   setStreamingComplete: (id?: string) => Promise<void>;
-  setStreamingFailed: () => void;
+  setStreamingFailed: () => Promise<void>;
   clearMessages: () => void;
+}
+
+interface PendingStreamChunks {
+  content: string[];
+  thoughtProcess: string[];
+}
+
+const pendingStreamChunks = new Map<string, PendingStreamChunks>();
+let streamFlushHandle: number | null = null;
+let streamFlushUsesTimeout = false;
+
+function flushPendingStreamChunks(): void {
+  if (streamFlushHandle !== null) {
+    if (streamFlushUsesTimeout) {
+      window.clearTimeout(streamFlushHandle);
+    } else {
+      window.cancelAnimationFrame(streamFlushHandle);
+    }
+    streamFlushHandle = null;
+  }
+
+  if (pendingStreamChunks.size === 0) return;
+
+  const chunks = new Map(pendingStreamChunks);
+  pendingStreamChunks.clear();
+
+  useChatStore.setState((state) => {
+    let hasUpdates = false;
+    const messages = state.messages.map((message) => {
+      const pending = chunks.get(message.id);
+      if (!pending) return message;
+
+      const contentDelta = pending.content.join("");
+      const thoughtDelta = pending.thoughtProcess.join("");
+      if (!contentDelta && !thoughtDelta) return message;
+
+      hasUpdates = true;
+      return {
+        ...message,
+        ...(contentDelta ? { content: message.content + contentDelta } : {}),
+        ...(thoughtDelta
+          ? {
+              thoughtProcess:
+                (message.thoughtProcess ?? "") + thoughtDelta,
+            }
+          : {}),
+      };
+    });
+
+    return hasUpdates ? { messages } : state;
+  });
+}
+
+function scheduleStreamFlush(): void {
+  if (streamFlushHandle !== null) return;
+
+  if (typeof window.requestAnimationFrame === "function") {
+    streamFlushUsesTimeout = false;
+    streamFlushHandle = window.requestAnimationFrame(() => {
+      streamFlushHandle = null;
+      flushPendingStreamChunks();
+    });
+    return;
+  }
+
+  streamFlushUsesTimeout = true;
+  streamFlushHandle = window.setTimeout(() => {
+    streamFlushHandle = null;
+    flushPendingStreamChunks();
+  }, 16);
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -36,6 +106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
   switchSession: async (sessionId) => {
+    flushPendingStreamChunks();
     const messages = await getMessagesBySession(sessionId);
     set({ currentSessionId: sessionId, messages });
   },
@@ -65,24 +136,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({ messages: [...state.messages, message] }));
     await saveMessage(message);
   },
-  appendStreamChunk: (id, chunk) =>
-    set((state) => {
-      let messageFound = false;
-      const messages = state.messages.map((message) => {
-        if (message.id !== id) return message;
-
-        messageFound = true;
-        return chunk.type === "thought_delta"
-          ? {
-              ...message,
-              thoughtProcess: (message.thoughtProcess ?? "") + chunk.content,
-            }
-          : { ...message, content: message.content + chunk.content };
-      });
-
-      return messageFound ? { messages } : state;
-    }),
+  appendStreamChunk: (id, chunk) => {
+    const pending = pendingStreamChunks.get(id) ?? {
+      content: [],
+      thoughtProcess: [],
+    };
+    if (chunk.type === "thought_delta") {
+      pending.thoughtProcess.push(chunk.content);
+    } else {
+      pending.content.push(chunk.content);
+    }
+    pendingStreamChunks.set(id, pending);
+    scheduleStreamFlush();
+  },
   setStreamingComplete: async (id) => {
+    flushPendingStreamChunks();
     const message = get().messages.find(
       (item) =>
         item.id === id ||
@@ -100,16 +168,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
     await saveMessage(completedMessage);
   },
-  setStreamingFailed: () =>
+  setStreamingFailed: async () => {
+    flushPendingStreamChunks();
+    const message = get().messages.findLast(
+      (item) => item.role === "assistant" && item.status === "streaming",
+    );
+    if (!message) return;
+
+    const failedMessage: Message = { ...message, status: "error" };
     set((state) => ({
-      messages: state.messages.map((message, index) =>
-        index ===
-        state.messages.findLastIndex(
-          (item) => item.role === "assistant" && item.status === "streaming",
-        )
-          ? { ...message, status: "failed" }
-          : message,
+      messages: state.messages.map((item) =>
+        item.id === failedMessage.id ? failedMessage : item,
       ),
-    })),
-  clearMessages: () => set({ messages: [] }),
+    }));
+    await saveMessage(failedMessage);
+  },
+  clearMessages: () => {
+    pendingStreamChunks.clear();
+    if (streamFlushHandle !== null) {
+      if (streamFlushUsesTimeout) {
+        window.clearTimeout(streamFlushHandle);
+      } else {
+        window.cancelAnimationFrame(streamFlushHandle);
+      }
+      streamFlushHandle = null;
+    }
+    set({ messages: [] });
+  },
 }));

@@ -3,7 +3,7 @@
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 20:36:55
  * @LastEditors: realrain☔ 1936648485@qq.com
- * @LastEditTime: 2026-10-08 14:06:11
+ * @LastEditTime: 2026-10-08 17:07:27
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\README.md
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
@@ -12,11 +12,23 @@
 
 > **Lightweight, Local-First AI Agent Workbench UI powered by WebGPU (WebLLM) and Ollama. Zero backend dependencies required.**
 
-[Live Demo](https://your-demo-link.vercel.app) | [GitHub Repo](https://github.com/real-rain/LocalAgent-UI)
+[中文](README.zh-CN.md) | [GitHub Repo](https://github.com/real-rain/LocalAgent-UI)
 
 `LocalAgent-UI` is a modern, high-performance in-browser AI Agent studio. It brings a native-like DevTools experience for **visual Chain-of-Thought (CoT) reasoning**, **interactive Tool Calling visualization**, and **isolated client-side live code sandboxes** directly inside your browser.
 
 <p align="center"><img src="./src/assets/logo.svg" alt="LocalAgent-UI Banner" width="192" /></p>
+
+---
+
+## 🎬 Live Demo
+
+### WebGPU
+
+<p align="center"><img src="./public/WebGPU_Demonstration.gif" alt="LocalAgent-UI WebGPU demonstration" /></p>
+
+### Ollama
+
+<p align="center"><img src="./public/Ollama_Demonstration.gif" alt="LocalAgent-UI Ollama demonstration" /></p>
 
 ---
 

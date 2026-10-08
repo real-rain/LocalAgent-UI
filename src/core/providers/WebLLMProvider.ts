@@ -14,7 +14,7 @@ import {
 } from "@mlc-ai/web-llm";
 import { StreamParser, type StreamChunk } from "../parser/StreamParser";
 import type { Message } from "../../types/chat";
-import { CODE_FORMATTING_SYSTEM_PROMPT } from "./systemPrompt";
+import { WEBGPU_SMALL_MODEL_SYSTEM_PROMPT } from "./systemPrompt";
 
 export type { StreamChunk } from "../parser/StreamParser";
 
@@ -87,9 +87,11 @@ export class WebLLMProvider {
         const parser = new StreamParser();
         const stream = await this.engine.chat.completions.create({
             messages: [
-                { role: "system", content: CODE_FORMATTING_SYSTEM_PROMPT },
+                { role: "system", content: WEBGPU_SMALL_MODEL_SYSTEM_PROMPT },
                 ...messages,
             ],
+            temperature: 0.6,
+            top_p: 0.9,
             stream: true,
         });
 

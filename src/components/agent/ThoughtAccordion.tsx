@@ -13,76 +13,34 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     const thoughtProcess = message.thoughtProcess ?? "";
     const isStreaming = message.status === "streaming";
     const hasThoughtProcess = Boolean(thoughtProcess.trim());
-    const hasMessageContent = Boolean(message.content.trim());
     const [isExpanded, setIsExpanded] = useState(
         Boolean(thoughtProcess) || isStreaming,
     );
     const [promptIndex, setPromptIndex] = useState(0);
-    const [displayedThought, setDisplayedThought] = useState("");
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
-    const [placeholderTimedOutFor, setPlaceholderTimedOutFor] = useState<
-        string | null
-    >(null);
     const contentId = useId();
-    const startedAtRef = useRef(0);
-    const displayedLengthRef = useRef(0);
-    const latestThoughtRef = useRef(thoughtProcess);
-
-    useEffect(() => {
-        latestThoughtRef.current = thoughtProcess;
-    }, [thoughtProcess]);
-
-    useEffect(() => {
-        if (!isStreaming) return;
-
-        startedAtRef.current = Date.now();
-        const timer = window.setInterval(() => {
-            const target = latestThoughtRef.current;
-            if (displayedLengthRef.current < target.length) {
-                displayedLengthRef.current += 1;
-                setDisplayedThought(
-                    target.slice(0, displayedLengthRef.current),
-                );
-            }
-        }, 18);
-
-        return () => window.clearInterval(timer);
-    }, [isStreaming]);
+    const startedAtRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!isStreaming) {
-            if (startedAtRef.current) {
-                setElapsedSeconds(
-                    Math.floor((Date.now() - startedAtRef.current) / 1000),
-                );
+            if (startedAtRef.current !== null) {
+                setElapsedSeconds((Date.now() - startedAtRef.current) / 1000);
+                startedAtRef.current = null;
             }
             return;
         }
 
-        const timer = window.setInterval(() => {
-            setElapsedSeconds(
-                Math.floor((Date.now() - startedAtRef.current) / 1000),
-            );
-        }, 1000);
+        startedAtRef.current = Date.now();
+        setElapsedSeconds(0);
+        const updateElapsedTime = () => {
+            if (startedAtRef.current !== null) {
+                setElapsedSeconds((Date.now() - startedAtRef.current) / 1000);
+            }
+        };
+        const timer = window.setInterval(updateElapsedTime, 100);
 
         return () => window.clearInterval(timer);
-    }, [isStreaming]);
-
-    useEffect(() => {
-        if (!isStreaming || !hasMessageContent || hasThoughtProcess) return;
-
-        const timer = window.setTimeout(() => {
-            setPlaceholderTimedOutFor(message.id);
-        }, 5000);
-
-        return () => window.clearTimeout(timer);
-    }, [
-        hasMessageContent,
-        hasThoughtProcess,
-        isStreaming,
-        message.id,
-        thoughtProcess,
-    ]);
+    }, [isStreaming, message.id]);
 
     useEffect(() => {
         if (!isStreaming || hasThoughtProcess) return;
@@ -96,9 +54,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
 
     if (!isStreaming && !hasThoughtProcess) return null;
 
-    const placeholderTimedOut = placeholderTimedOutFor === message.id;
-
-    if (!hasThoughtProcess && !placeholderTimedOut) {
+    if (!hasThoughtProcess) {
         return (
             <motion.section
                 initial={{ opacity: 0, y: 4 }}
@@ -137,14 +93,12 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
         );
     }
 
-    if (!hasThoughtProcess) return null;
-
     return (
         <motion.section
             layout
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="overflow-hidden rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3.5 backdrop-blur"
+            className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 p-3.5 shadow-[0_0_18px_rgba(129,140,248,0.06)] backdrop-blur"
         >
             <button
                 type="button"
@@ -167,13 +121,14 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                         {t("chat.thoughtProcess")}
                     </span>
                     <span className="mt-1 block text-xs text-indigo-200/60">
-                        {t("chat.thoughtFor", { seconds: elapsedSeconds })}
+                        {isStreaming
+                            ? t("chat.thinkingElapsed", {
+                                  seconds: elapsedSeconds.toFixed(1),
+                              })
+                            : t("chat.thoughtFor", {
+                                  seconds: elapsedSeconds.toFixed(1),
+                              })}
                     </span>
-                    {isStreaming && (
-                        <span className="mt-1 block text-xs text-indigo-200/60">
-                            {t("chat.continuingThinking")}
-                        </span>
-                    )}
                 </span>
                 <ChevronDown
                     className={`size-4 shrink-0 text-indigo-300/70 transition-transform duration-200 ${
@@ -196,7 +151,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
             >
                 <div className="mt-3 border-t border-indigo-400/15 pt-3 font-mono text-xs leading-relaxed text-indigo-100/75">
                     <span className="whitespace-pre-wrap break-words">
-                        {isStreaming ? displayedThought : thoughtProcess}
+                        {thoughtProcess}
                     </span>
                     {isStreaming && (
                         <span className="ml-0.5 inline-block h-3 w-1 animate-pulse rounded-sm bg-indigo-300/80 align-middle" />

@@ -74,8 +74,8 @@
     "thoughtProcess": "Thought Process",
     "messageLabel": "Message",
     "conversationMessages": "Conversation messages",
-    "thoughtFor": "Thought for {{seconds}} seconds",
-    "continuingThinking": "Thinking…",
+    "thinkingElapsed": "Thinking... ({{seconds}}s)",
+    "thoughtFor": "Thought for {{seconds}}s",
     "thinkingPrompts": [
       "Analyzing the request context...",
       "Planning the code structure...",

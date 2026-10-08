@@ -1,3 +1,13 @@
+/*
+ * @Description: Ollama Provider 适配器
+ * @Author: realrain☔ 1936648485@qq.com
+ * @Date: 2026-10-07 20:36:55
+ * @LastEditors: realrain☔ 1936648485@qq.com
+ * @LastEditTime: 2026-10-08 16:35:36
+ * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\core\providers\OllamaProvider.ts
+ * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
+ * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ */
 import { CODE_FORMATTING_SYSTEM_PROMPT } from "./systemPrompt";
 import { StreamParser, type StreamChunk } from "../parser/StreamParser";
 
@@ -38,6 +48,10 @@ export class OllamaProvider {
           { role: "system", content: CODE_FORMATTING_SYSTEM_PROMPT },
           ...messages,
         ],
+        options: {
+          temperature: 0.6,
+          top_p: 0.9,
+        },
         stream: true,
       }),
       signal,

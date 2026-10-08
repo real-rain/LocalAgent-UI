@@ -14,6 +14,7 @@ export class StreamParser {
     private hasEmittedText = false;
 
     parse(value: string): StreamChunk[] {
+        if (!value) return [];
         this.buffer += value;
         return this.drain(false);
     }
@@ -30,8 +31,13 @@ export class StreamParser {
         const chunks: StreamChunk[] = [];
 
         while (this.buffer.length > 0) {
+            const normalizedBuffer = this.buffer.toLowerCase();
+
             if (this.inThinkBlock) {
-                const endMarker = this.findMarker(THOUGHT_END_MARKERS);
+                const endMarker = this.findMarker(
+                    THOUGHT_END_MARKERS,
+                    normalizedBuffer,
+                );
                 if (endMarker) {
                     this.pushChunk(chunks, this.buffer.slice(0, endMarker.index));
                     this.buffer = this.buffer.slice(
@@ -44,7 +50,10 @@ export class StreamParser {
                 const safeLength = flush
                     ? this.buffer.length
                     : this.buffer.length -
-                      this.possibleMarkerSuffixLength(THOUGHT_END_MARKERS);
+                      this.possibleMarkerSuffixLength(
+                          THOUGHT_END_MARKERS,
+                          normalizedBuffer,
+                      );
                 if (safeLength > 0) {
                     this.pushChunk(chunks, this.buffer.slice(0, safeLength));
                     this.buffer = this.buffer.slice(safeLength);
@@ -52,7 +61,10 @@ export class StreamParser {
                 break;
             }
 
-            const startMarker = this.findMarker(THOUGHT_START_MARKERS);
+            const startMarker = this.findMarker(
+                THOUGHT_START_MARKERS,
+                normalizedBuffer,
+            );
             if (startMarker) {
                 this.pushChunk(chunks, this.buffer.slice(0, startMarker.index));
                 this.buffer = this.buffer.slice(
@@ -78,7 +90,10 @@ export class StreamParser {
             const safeLength = flush
                 ? this.buffer.length
                 : this.buffer.length -
-                  this.possibleMarkerSuffixLength(THOUGHT_START_MARKERS);
+                  this.possibleMarkerSuffixLength(
+                      THOUGHT_START_MARKERS,
+                      normalizedBuffer,
+                  );
             if (safeLength > 0) {
                 this.pushChunk(chunks, this.buffer.slice(0, safeLength));
                 this.buffer = this.buffer.slice(safeLength);
@@ -94,12 +109,14 @@ export class StreamParser {
         return chunks;
     }
 
-    private findMarker(markers: string[]): { marker: string; index: number } | undefined {
+    private findMarker(
+        markers: string[],
+        normalizedBuffer: string,
+    ): { marker: string; index: number } | undefined {
         let match: { marker: string; index: number } | undefined;
-        const lowerBuffer = this.buffer.toLowerCase();
 
         for (const marker of markers) {
-            const index = lowerBuffer.indexOf(marker.toLowerCase());
+            const index = normalizedBuffer.indexOf(marker.toLowerCase());
             if (index >= 0 && (!match || index < match.index)) {
                 match = { marker, index };
             }
@@ -108,18 +125,20 @@ export class StreamParser {
         return match;
     }
 
-    private possibleMarkerSuffixLength(markers: string[]): number {
-        const lowerBuffer = this.buffer.toLowerCase();
+    private possibleMarkerSuffixLength(
+        markers: string[],
+        normalizedBuffer: string,
+    ): number {
         let maxLength = 0;
 
         for (const marker of markers) {
             const maxCandidateLength = Math.min(
-                lowerBuffer.length,
+                normalizedBuffer.length,
                 marker.length - 1,
             );
             for (let length = maxCandidateLength; length > maxLength; length -= 1) {
                 if (
-                    lowerBuffer.endsWith(marker.slice(0, length).toLowerCase())
+                    normalizedBuffer.endsWith(marker.slice(0, length).toLowerCase())
                 ) {
                     maxLength = length;
                     break;

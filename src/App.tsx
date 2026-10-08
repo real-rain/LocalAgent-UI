@@ -203,7 +203,13 @@ function App() {
     if (!abortControllerRef.current) return;
     abortControllerRef.current.abort();
     abortControllerRef.current = null;
-    setStreamingFailed();
+    void setStreamingFailed().catch((cause: unknown) => {
+      setRequestError(
+        cause instanceof Error
+          ? cause.message
+          : t("errors.unknownModelCommunication"),
+      );
+    });
     setIsSending(false);
   }
 
@@ -322,7 +328,13 @@ function App() {
             ? cause.message
             : t("errors.unknownModelCommunication"),
         );
-        setStreamingFailed();
+        await setStreamingFailed().catch((failure: unknown) => {
+          setRequestError(
+            failure instanceof Error
+              ? failure.message
+              : t("errors.unknownModelCommunication"),
+          );
+        });
       }
     } finally {
       if (abortControllerRef.current === controller) {
