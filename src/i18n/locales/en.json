@@ -26,6 +26,7 @@
       "offline": "Offline"
     },
     "selectModel": "Select a model",
+    "disabledWhileGenerating": "Cannot change language while generating",
     "localOllama": "Local Ollama inference",
     "browserWebgpu": "Browser WebGPU inference",
     "browserRuntime": "Browser model runtime"

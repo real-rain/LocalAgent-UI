@@ -26,6 +26,7 @@
       "offline": "离线"
     },
     "selectModel": "选择模型",
+    "disabledWhileGenerating": "生成过程中无法切换语言",
     "localOllama": "本地 Ollama 推理",
     "browserWebgpu": "浏览器端 WebGPU 推理",
     "browserRuntime": "浏览器端模型运行环境"

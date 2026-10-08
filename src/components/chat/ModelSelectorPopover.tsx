@@ -18,6 +18,7 @@ export interface ModelSelectorPopoverProps {
     selectedModel: string;
     isWebLLMReady: boolean;
     isWebLLMLoading: boolean;
+    disabled: boolean;
     onSelectEngine: (engine: 'ollama' | 'webgpu', model: string) => void;
 }
 
@@ -26,6 +27,7 @@ export function ModelSelectorPopover({
     selectedModel,
     isWebLLMReady,
     isWebLLMLoading,
+    disabled,
     onSelectEngine,
 }: ModelSelectorPopoverProps) {
     const { t } = useTranslation();
@@ -149,6 +151,8 @@ export function ModelSelectorPopover({
         : t('header.selectModel');
 
     const handleOllamaSelect = (model: string) => {
+        if (disabled) return;
+
         if (!ollamaStatus.isAlive) {
             setErrorMessage(t('modelSelector.ollamaConnectionError'));
             return;
@@ -159,6 +163,8 @@ export function ModelSelectorPopover({
     };
 
     const handleReconnect = async () => {
+        if (disabled) return;
+
         setErrorMessage(t('modelSelector.ollamaConnectionError'));
         setOllamaStatus((status) => ({ ...status, loading: true }));
         setIsCheckingWebGPU(true);
@@ -175,14 +181,17 @@ export function ModelSelectorPopover({
                 type="button"
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
+                disabled={disabled}
                 onClick={() => {
+                    if (disabled) return;
+
                     if (!isOpen) {
                         beginHealthCheck();
                         loadWebGPUModels();
                     }
                     setIsOpen(!isOpen);
                 }}
-                className="flex max-w-full items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                className="flex max-w-full items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {selectedIsOffline ? (
                     <span className="h-2 w-2 rounded-full bg-red-500" aria-label={t('header.status.offline')} />
@@ -232,8 +241,9 @@ export function ModelSelectorPopover({
                                         type="button"
                                         role="option"
                                         aria-selected={isSelected}
+                                        disabled={disabled}
                                         onClick={() => handleOllamaSelect(model)}
-                                        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none"
+                                        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Server className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
                                         <span className="flex-1 truncate">{model}</span>
@@ -251,8 +261,9 @@ export function ModelSelectorPopover({
                     ) : (
                         <button
                             type="button"
+                            disabled={disabled}
                             onClick={() => void handleReconnect()}
-                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-amber-400 transition-colors hover:bg-zinc-800/70 focus-visible:bg-zinc-800/70 focus-visible:outline-none"
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-amber-400 transition-colors hover:bg-zinc-800/70 focus-visible:bg-zinc-800/70 focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                             {t('header.status.offline')} · {t('modelSelector.reconnect')}
@@ -283,6 +294,7 @@ export function ModelSelectorPopover({
                                 selectedEngine === 'webgpu' &&
                                 selectedModel === option.model;
                             const isDisabled =
+                                disabled ||
                                 !webgpuStatus.isSupported ||
                                 (isWebLLMLoading &&
                                     !(selectedEngine === 'webgpu' &&

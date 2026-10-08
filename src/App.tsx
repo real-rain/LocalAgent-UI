@@ -79,7 +79,9 @@ function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isWebLLMReady =
     engineMode === "webgpu" && webLLMReadyModel === modelName;
-  const isStreaming = messages.some((message) => message.status === "streaming");
+  const isStreaming = useChatStore((state) =>
+    state.messages.some((message) => message.status === "streaming"),
+  );
   const {
     scrollRef: scrollContainerRef,
     isAtBottom,
@@ -104,6 +106,8 @@ function App() {
   }
 
   function handleLanguageToggle() {
+    if (isStreaming) return;
+
     const newLang = i18n.resolvedLanguage?.startsWith("zh") ? "en" : "zh";
     void i18n.changeLanguage(newLang);
     window.localStorage.setItem("app-language", newLang);
@@ -148,6 +152,8 @@ function App() {
   }, [modelName, t]);
 
   function handleEngineChange(nextEngine: Engine, nextModel: string) {
+    if (isStreaming) return;
+
     setEngineMode(nextEngine);
     setModelName(nextModel);
     setEngineError(null);
@@ -567,7 +573,7 @@ function App() {
           </div>
 
           <fieldset
-            disabled={isSending}
+            disabled={isStreaming}
             className="min-w-0 max-w-[min(50vw,24rem)] justify-self-center border-0 p-0"
           >
             <ModelSelectorPopover
@@ -575,6 +581,7 @@ function App() {
               selectedModel={modelName}
               isWebLLMReady={isWebLLMReady}
               isWebLLMLoading={isWebLLMLoading}
+              disabled={isStreaming}
               onSelectEngine={(engine, model) =>
                 handleEngineChange(engine, model)
               }
@@ -583,9 +590,21 @@ function App() {
           <button
             type="button"
             aria-label={t("common.switchLanguage")}
-            title={t("common.switchLanguage")}
+            disabled={isStreaming}
+            title={
+              isStreaming
+                ? t(
+                    "header.disabledWhileGenerating",
+                    "Cannot change language while generating",
+                  )
+                : t("common.switchLanguage")
+            }
             onClick={handleLanguageToggle}
-            className="shrink-0 justify-self-end px-2.5 py-1 text-xs rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className={`shrink-0 justify-self-end px-2.5 py-1 text-xs rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
+              isStreaming
+                ? "opacity-50 cursor-not-allowed pointer-events-none"
+                : ""
+            }`}
           >
             {i18n.resolvedLanguage?.startsWith("zh") ? "ZH" : "EN"}
           </button>
