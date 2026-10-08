@@ -150,6 +150,7 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
 
     if (
         isAssistant &&
+        !isStreaming &&
         !message.content.trim() &&
         !message.thoughtProcess?.trim() &&
         !message.toolCalls?.length
@@ -163,12 +164,9 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
             data-role={message.role}
         >
             <article className="chat-message__bubble">
-                {isAssistant && message.thoughtProcess && (
+                {isAssistant && (
                     <div className="chat-message__section">
-                        <ThoughtAccordion
-                            thoughtProcess={message.thoughtProcess}
-                            status={message.status}
-                        />
+                        <ThoughtAccordion message={message} />
                     </div>
                 )}
 
