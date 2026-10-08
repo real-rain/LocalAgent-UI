@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { normalizeMermaidSource } from "./normalizeMermaidSource";
 
 interface MermaidDiagramProps {
     source: string;
@@ -33,7 +34,9 @@ export function MermaidDiagram({ source }: MermaidDiagramProps) {
     useEffect(() => {
         let isActive = true;
         void loadMermaid()
-            .then((module) => module.default.render(id, source))
+            .then((module) =>
+                module.default.render(id, normalizeMermaidSource(source)),
+            )
             .then(({ svg: renderedSvg }) => {
                 if (isActive) setResult({ source, svg: renderedSvg });
             })
