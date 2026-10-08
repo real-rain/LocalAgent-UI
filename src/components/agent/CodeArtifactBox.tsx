@@ -8,7 +8,7 @@
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
 import { wrapSandboxHtml } from "../../core/utils/sandboxTemplate";
 
@@ -27,29 +27,34 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
     const [activeTab, setActiveTab] = useState<ArtifactTab>("code");
     const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const boxRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const supportsPreview = PREVIEW_LANGUAGES.has(language.toLowerCase());
+    const sandboxHtml = useMemo(
+        () => wrapSandboxHtml(previewCode ?? code, language),
+        [previewCode, code, language],
+    );
 
     useEffect(() => {
         function handleFullscreenChange() {
-            setIsFullscreen(document.fullscreenElement === boxRef.current);
+            setIsFullscreen(document.fullscreenElement === containerRef.current);
         }
 
         document.addEventListener("fullscreenchange", handleFullscreenChange);
         return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
     }, []);
 
-    async function toggleFullscreen() {
+    const handleToggleFullscreen = async () => {
+        if (!containerRef.current) return;
         try {
-            if (document.fullscreenElement) {
-                await document.exitFullscreen();
+            if (!document.fullscreenElement) {
+                await containerRef.current.requestFullscreen();
             } else {
-                await boxRef.current?.requestFullscreen();
+                await document.exitFullscreen();
             }
-        } catch (error) {
-            console.error("Unable to toggle fullscreen for code preview.", error);
+        } catch (err) {
+            console.error("Fullscreen error:", err);
         }
-    }
+    };
 
     async function copyCode() {
         try {
@@ -65,8 +70,8 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
 
     return (
         <div
-            ref={boxRef}
-            className={`overflow-hidden border border-zinc-200 bg-white text-left text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950 ${isFullscreen ? "flex h-screen flex-col rounded-none" : "rounded-lg"}`}
+            ref={containerRef}
+            className={`overflow-hidden border border-zinc-200 bg-white text-left text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950 fullscreen:fixed fullscreen:inset-0 fullscreen:z-50 fullscreen:bg-zinc-950 ${isFullscreen ? "flex h-screen flex-col rounded-none" : "rounded-lg"}`}
         >
             <header className="flex min-h-11 items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
                 <span className="shrink-0 rounded bg-zinc-200 px-2 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
@@ -81,7 +86,7 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                     {showingPreview && (
                         <button
                             type="button"
-                            onClick={toggleFullscreen}
+                            onClick={handleToggleFullscreen}
                             className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                             title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
@@ -102,7 +107,7 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                                 className={`rounded px-2 py-1 text-xs transition-colors ${activeTab === "code" ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"}`}
                                 onClick={() => {
                                     setActiveTab("code");
-                                    if (document.fullscreenElement === boxRef.current) {
+                                    if (document.fullscreenElement === containerRef.current) {
                                         void document.exitFullscreen().catch((error: unknown) => {
                                             console.error("Unable to exit fullscreen for code preview.", error);
                                         });
@@ -147,9 +152,10 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
             {showingPreview ? (
                 <div className={`bg-white ${isFullscreen ? "min-h-0 flex-1" : ""}`}>
                     <iframe
+                        key="preview-iframe"
                         title={title ? `${title} preview` : `${language} preview`}
-                        className={`w-full border-0 rounded-b-lg bg-white ${isFullscreen ? "h-[calc(100vh-50px)]" : "h-[450px]"}`}
-                        srcDoc={wrapSandboxHtml(previewCode ?? code, language)}
+                        className={`w-full border-0 bg-white ${isFullscreen ? "h-full" : "h-[450px] rounded-b-lg"}`}
+                        srcDoc={sandboxHtml}
                         sandbox="allow-scripts allow-modals"
                     />
                 </div>
