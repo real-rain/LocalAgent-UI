@@ -15,50 +15,39 @@ import { wrapSandboxHtml } from "../../core/utils/sandboxTemplate";
 interface CodeArtifactBoxProps {
     language: string;
     code: string;
+    previewCode?: string;
     title?: string;
 }
 
 type ArtifactTab = "code" | "preview";
 
-const PREVIEW_LANGUAGES = new Set(["html", "javascript", "jsx", "svg"]);
+const PREVIEW_LANGUAGES = new Set(["html", "svg"]);
 
-export function CodeArtifactBox({ language, code, title }: CodeArtifactBoxProps) {
+export function CodeArtifactBox({ language, code, previewCode, title }: CodeArtifactBoxProps) {
     const [activeTab, setActiveTab] = useState<ArtifactTab>("code");
     const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
-    const [isMaximized, setIsMaximized] = useState(false);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const boxRef = useRef<HTMLDivElement>(null);
     const supportsPreview = PREVIEW_LANGUAGES.has(language.toLowerCase());
 
     useEffect(() => {
-        if (!isMaximized) {
-            return;
+        function handleFullscreenChange() {
+            setIsFullscreen(document.fullscreenElement === boxRef.current);
         }
 
-        iframeRef.current?.style.removeProperty("height");
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+        return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    }, []);
 
-        function handleKeyDown(event: KeyboardEvent) {
-            if (event.key === "Escape") {
-                setIsMaximized(false);
-            }
-        }
-
-        document.addEventListener("keydown", handleKeyDown);
-        return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [isMaximized]);
-
-    function adjustPreviewHeight() {
-        const iframe = iframeRef.current;
-        if (!iframe) {
-            return;
-        }
-
+    async function toggleFullscreen() {
         try {
-            const documentHeight = iframe.contentWindow?.document.body.scrollHeight;
-            if (documentHeight && documentHeight > 0) {
-                iframe.style.height = `${documentHeight}px`;
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else {
+                await boxRef.current?.requestFullscreen();
             }
         } catch (error) {
-            console.warn("Unable to measure sandboxed preview height; iframe scrolling remains enabled.", error);
+            console.error("Unable to toggle fullscreen for code preview.", error);
         }
     }
 
@@ -75,7 +64,10 @@ export function CodeArtifactBox({ language, code, title }: CodeArtifactBoxProps)
     const showingPreview = supportsPreview && activeTab === "preview";
 
     return (
-        <section className={`${isMaximized ? "fixed inset-3 z-50 flex flex-col overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 text-left text-sm shadow-2xl" : "overflow-hidden rounded-lg border border-zinc-200 bg-white text-left text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950"}`}>
+        <div
+            ref={boxRef}
+            className={`overflow-hidden border border-zinc-200 bg-white text-left text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950 ${isFullscreen ? "flex h-screen flex-col rounded-none" : "rounded-lg"}`}
+        >
             <header className="flex min-h-11 items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
                 <span className="shrink-0 rounded bg-zinc-200 px-2 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                     {language}
@@ -89,12 +81,12 @@ export function CodeArtifactBox({ language, code, title }: CodeArtifactBoxProps)
                     {showingPreview && (
                         <button
                             type="button"
-                            onClick={() => setIsMaximized((maximized) => !maximized)}
+                            onClick={toggleFullscreen}
                             className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                            aria-label={isMaximized ? "Restore preview" : "Maximize preview"}
-                            title={isMaximized ? "Restore preview" : "Maximize preview"}
+                            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                         >
-                            {isMaximized ? (
+                            {isFullscreen ? (
                                 <Minimize2 className="size-3.5" aria-hidden="true" />
                             ) : (
                                 <Maximize2 className="size-3.5" aria-hidden="true" />
@@ -110,7 +102,11 @@ export function CodeArtifactBox({ language, code, title }: CodeArtifactBoxProps)
                                 className={`rounded px-2 py-1 text-xs transition-colors ${activeTab === "code" ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"}`}
                                 onClick={() => {
                                     setActiveTab("code");
-                                    setIsMaximized(false);
+                                    if (document.fullscreenElement === boxRef.current) {
+                                        void document.exitFullscreen().catch((error: unknown) => {
+                                            console.error("Unable to exit fullscreen for code preview.", error);
+                                        });
+                                    }
                                 }}
                             >
                                 Code
@@ -149,14 +145,12 @@ export function CodeArtifactBox({ language, code, title }: CodeArtifactBoxProps)
             )}
 
             {showingPreview ? (
-                <div className={`border border-zinc-800 bg-zinc-950 ${isMaximized ? "min-h-0 flex-1" : "h-[50vh] min-h-[350px] max-h-[600px] resize-y overflow-y-auto"}`}>
+                <div className={`bg-white ${isFullscreen ? "min-h-0 flex-1" : ""}`}>
                     <iframe
-                        ref={iframeRef}
                         title={title ? `${title} preview` : `${language} preview`}
-                        className="h-full w-full rounded-b-lg border-0 bg-zinc-950"
-                        srcDoc={wrapSandboxHtml(code, language)}
-                        sandbox="allow-scripts"
-                        onLoad={adjustPreviewHeight}
+                        className={`w-full border-0 rounded-b-lg bg-white ${isFullscreen ? "h-[calc(100vh-50px)]" : "h-[450px]"}`}
+                        srcDoc={wrapSandboxHtml(previewCode ?? code, language)}
+                        sandbox="allow-scripts allow-modals"
                     />
                 </div>
             ) : (
@@ -166,7 +160,7 @@ export function CodeArtifactBox({ language, code, title }: CodeArtifactBoxProps)
                     </code>
                 </pre>
             )}
-        </section>
+        </div>
     );
 }
 

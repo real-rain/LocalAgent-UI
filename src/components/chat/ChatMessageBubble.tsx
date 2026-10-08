@@ -19,39 +19,134 @@ interface ChatMessageBubbleProps {
     message: Message;
 }
 
-const markdownComponents: Components = {
-    code({ children, className, ...props }) {
-        const matchLang = /language-(\w+)/.exec(className || "");
-        const codeContent = String(children).replace(/\n$/, "");
-        let language = matchLang ? matchLang[1] : "";
+interface MarkdownCodeBlock {
+    language: string;
+    code: string;
+}
 
-        if (
-            !language &&
-            /<!DOCTYPE html>|<html\b|<(?:style|script)\b/i.test(codeContent)
-        ) {
-            language = "html";
+function extractMarkdownCodeBlocks(markdown: string): MarkdownCodeBlock[] {
+    const lines = markdown.split(/\r?\n/);
+    const blocks: MarkdownCodeBlock[] = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+        const openingFence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(lines[index]);
+        if (!openingFence) continue;
+
+        const fence = openingFence[1];
+        const language = openingFence[2].trim().split(/\s+/, 1)[0]?.toLowerCase() ?? "";
+        const codeLines: string[] = [];
+        const closingFence = new RegExp(`^ {0,3}${fence[0]}{${fence.length},}[ \\t]*$`);
+        index += 1;
+
+        while (index < lines.length && !closingFence.test(lines[index])) {
+            codeLines.push(lines[index]);
+            index += 1;
         }
 
-        const isCodeBlock =
-            Boolean(matchLang) ||
-            codeContent.includes("\n") ||
-            String(children).endsWith("\n");
+        blocks.push({ language, code: codeLines.join("\n") });
+    }
 
-        if (isCodeBlock && language) {
-            return <CodeArtifactBox language={language} code={codeContent} />;
+    return blocks;
+}
+
+function insertBeforeTagEnd(
+    html: string,
+    tag: "head" | "body",
+    content: string,
+): string {
+    const fallbackTags = tag === "head" ? ["body", "html"] : ["html"];
+    for (const targetTag of [tag, ...fallbackTags]) {
+        const closingTag = new RegExp(`</${targetTag}\\s*>`, "i");
+        if (closingTag.test(html)) {
+            return html.replace(closingTag, `${content}\n$&`);
         }
+    }
 
-        return (
-            <code className={className} {...props}>
-                {children}
-            </code>
-        );
-    },
-};
+    return `${html}\n${content}`;
+}
+
+function createCombinedHtml(blocks: MarkdownCodeBlock[]): string | undefined {
+    const htmlBlock = blocks.find((block) => block.language === "html");
+    if (!htmlBlock) return undefined;
+
+    const cssCode = blocks
+        .filter((block) => block.language === "css")
+        .map((block) => block.code)
+        .filter(Boolean)
+        .join("\n");
+    const jsCode = blocks
+        .filter((block) => block.language === "javascript" || block.language === "js")
+        .map((block) => block.code)
+        .filter(Boolean)
+        .join("\n");
+
+    let combinedHtml = htmlBlock.code;
+    const hasStylesheet =
+        /<style\b/i.test(combinedHtml) ||
+        /<link\b[^>]*\brel\s*=\s*["']?stylesheet\b/i.test(combinedHtml);
+    const hasScript = /<script\b/i.test(combinedHtml);
+
+    if (cssCode && !hasStylesheet) {
+        const styleTag = `<style>\n${cssCode.replace(/<\/style/gi, "<\\/style")}\n</style>`;
+        combinedHtml = insertBeforeTagEnd(combinedHtml, "head", styleTag);
+    }
+    if (jsCode && !hasScript) {
+        const scriptTag = `<script>\n${jsCode.replace(/<\/script/gi, "<\\/script")}\n</script>`;
+        combinedHtml = insertBeforeTagEnd(combinedHtml, "body", scriptTag);
+    }
+
+    return combinedHtml === htmlBlock.code ? undefined : combinedHtml;
+}
+
+function createMarkdownComponents(previewHtml?: string): Components {
+    let previewAssigned = false;
+
+    return {
+        code({ children, className, ...props }) {
+            const matchLang = /language-(\w+)/.exec(className || "");
+            const codeContent = String(children).replace(/\n$/, "");
+            let language = matchLang ? matchLang[1] : "";
+
+            if (
+                !language &&
+                /<!DOCTYPE html>|<html\b|<(?:style|script)\b/i.test(codeContent)
+            ) {
+                language = "html";
+            }
+
+            const isCodeBlock =
+                Boolean(matchLang) ||
+                codeContent.includes("\n") ||
+                String(children).endsWith("\n");
+
+            if (isCodeBlock && language) {
+                const useCombinedPreview =
+                    !previewAssigned && language.toLowerCase() === "html" && previewHtml;
+                if (useCombinedPreview) previewAssigned = true;
+
+                return (
+                    <CodeArtifactBox
+                        language={language}
+                        code={codeContent}
+                        previewCode={useCombinedPreview ? previewHtml : undefined}
+                    />
+                );
+            }
+
+            return (
+                <code className={className} {...props}>
+                    {children}
+                </code>
+            );
+        },
+    };
+}
 
 export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
     const isAssistant = message.role === "assistant";
     const isStreaming = message.status === "streaming";
+    const previewHtml = createCombinedHtml(extractMarkdownCodeBlocks(message.content));
+    const markdownComponents = createMarkdownComponents(previewHtml);
 
     if (
         isAssistant &&
