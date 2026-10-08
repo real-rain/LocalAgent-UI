@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- 主背景渐变 -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09090b"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+
+    <!-- 芯片与 Core 渐变 -->
+    <linearGradient id="core-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/> <!-- Indigo 500 -->
+      <stop offset="50%" stop-color="#3b82f6"/> <!-- Blue 500 -->
+      <stop offset="100%" stop-color="#06b6d4"/> <!-- Cyan 500 -->
+    </linearGradient>
+
+    <!-- 外围线条渐变 -->
+    <linearGradient id="stroke-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.3"/>
+    </linearGradient>
+
+    <!-- 辉光发光效果 -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- 圆角背景容器 -->
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)" stroke="#27272a" stroke-width="8"/>
+
+  <!-- WebGPU 芯片电路外框 (Outer Circuit / GPU Nodes) -->
+  <rect x="112" y="112" width="288" height="288" rx="48" stroke="url(#stroke-grad)" stroke-width="6" stroke-dasharray="16 8" fill="none" />
+  
+  <!-- 4角引脚触点 (GPU Pins) -->
+  <circle cx="112" cy="112" r="8" fill="#818cf8"/>
+  <circle cx="400" cy="112" r="8" fill="#818cf8"/>
+  <circle cx="112" cy="400" r="8" fill="#22d3ee"/>
+  <circle cx="400" cy="400" r="8" fill="#22d3ee"/>
+
+  <!-- 内部 Core 逻辑区域 (Local Core) -->
+  <rect x="160" y="160" width="192" height="192" rx="32" fill="#18181b" stroke="#3f3f46" stroke-width="4"/>
+
+  <!-- 中心 Agent AI 星芒/晶体 (AI Sparkle with Glow) -->
+  <g filter="url(#glow)">
+    <!-- 中央主星芒 -->
+    <path d="M256 192 C256 228 228 256 192 256 C228 256 256 284 256 320 C256 284 284 256 320 256 C284 256 256 228 256 192 Z" fill="url(#core-grad)"/>
+    <!-- 右上伴星 -->
+    <path d="M316 180 C316 194 305 205 291 205 C305 205 316 216 316 230 C316 216 327 205 341 205 C327 205 316 194 316 180 Z" fill="#22d3ee"/>
+  </g>
+
+  <!-- 代码沙盒/终端控制节点 (Terminal / Sandbox Element) -->
+  <path d="M200 376 L224 376" stroke="#818cf8" stroke-width="6" stroke-linecap="round"/>
+  <path d="M240 376 L312 376" stroke="#3f3f46" stroke-width="6" stroke-linecap="round"/>
+</svg>

@@ -8,12 +8,12 @@ import {
 } from "react";
 import {
   ArrowDown,
+  ArrowUpRight,
   Cpu,
   Mail,
   Plus,
   Send,
   Sidebar,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import githubIcon from "./assets/GitHub.svg";
@@ -32,6 +32,29 @@ let webLLMProvider: WebLLMProvider | null = null;
 type Engine = "ollama" | "webgpu";
 
 const CONTACT_EMAIL = "1936648485@qq.com";
+
+const starterSuggestions = [
+  {
+    category: "Live Preview",
+    title: "🎨 Web Component Preview",
+    prompt: "用 HTML/CSS/JS 写一个带 3D 翻转效果与粒子微交互的卡片组件",
+  },
+  {
+    category: "CoT Reasoning",
+    title: "🧠 CoT Chain of Thought",
+    prompt: "详细分析并推导快速排序算法的时间复杂度，对比归并排序与堆排序",
+  },
+  {
+    category: "Tool Calling",
+    title: "🔧 Agent Tool Execution",
+    prompt: "检查当前 Sandboxed JavaScript 执行环境，并使用工具计算 1 到 1000 的斐波那契数列",
+  },
+  {
+    category: "Quick Answer",
+    title: "⚡ Local WebGPU Benchmark",
+    prompt: "请用极简的代码在 100 字内总结 Local-First AI Agent 相比传统 Cloud LLM 的 3 大核心优势",
+  },
+];
 
 function App() {
   const sessions = useChatStore((state) => state.sessions);
@@ -213,9 +236,8 @@ function App() {
     }
   }
 
-  async function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const content = input.trim();
+  async function handleSendMessage(promptText: string) {
+    const content = promptText.trim();
     if (!content || abortControllerRef.current) return;
     if (!modelName) {
       setRequestError("请先从右上角选择一个可用模型。");
@@ -299,6 +321,11 @@ function App() {
     }
   }
 
+  async function handleSend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await handleSendMessage(input);
+  }
+
   const currentSession = sessions.find(
     (session) => session.id === currentSessionId,
   );
@@ -309,11 +336,13 @@ function App() {
         <aside className="flex w-72 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950/95">
           <div className="flex h-16 items-center justify-between border-b border-zinc-800 px-4">
             <div className="flex items-center gap-2.5">
-              <div className="grid size-8 place-items-center rounded-lg border border-violet-400/15 bg-violet-400/10 text-violet-300">
-                <Sparkles className="size-4" aria-hidden="true" />
-              </div>
-              <span className="text-sm font-semibold tracking-tight">
-                LocalAgent Studio
+              <img
+                src={`${import.meta.env.BASE_URL}logo.svg`}
+                alt="LocalAgent-UI Logo"
+                className="w-6 h-6 rounded-md shadow-sm"
+              />
+              <span className="bg-gradient-to-r from-indigo-300 via-blue-300 to-cyan-300 bg-clip-text text-sm font-semibold tracking-tight text-transparent">
+                LocalAgent-UI
               </span>
             </div>
           </div>
@@ -526,7 +555,42 @@ function App() {
             className="chat-messages-scroll h-full overflow-y-auto px-4 pb-8 pt-6 sm:px-6"
           >
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-            {engineMode === "webgpu" && !isWebLLMReady ? (
+            {messages.length === 0 ? (
+              <div className="flex min-h-[52vh] flex-col items-center justify-center py-8 text-center">
+                <img
+                  src={`${import.meta.env.BASE_URL}logo.svg`}
+                  alt="LocalAgent-UI Logo"
+                  className="w-12 h-12 mb-3 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
+                />
+                <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
+                  Welcome to LocalAgent-UI
+                </h2>
+                <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
+                  Lightweight, Local-First AI Agent Workbench running 100% in your browser.
+                </p>
+                <div className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-3 px-4 md:grid-cols-2">
+                  {starterSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.category}
+                      type="button"
+                      onClick={() => setInput(suggestion.prompt)}
+                      className="group flex cursor-pointer flex-col justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-left transition-all hover:border-zinc-700/80 hover:bg-zinc-800/80 hover:shadow-lg hover:shadow-indigo-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    >
+                      <span className="w-fit rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-400 transition-colors group-hover:text-indigo-300">
+                        {suggestion.category}
+                      </span>
+                      <span className="mt-2 text-sm font-semibold text-zinc-200 transition-colors group-hover:text-zinc-100">
+                        {suggestion.title}
+                      </span>
+                      <span className="mt-1 line-clamp-2 text-xs font-medium text-zinc-300 group-hover:text-zinc-100">
+                        {suggestion.prompt}
+                      </span>
+                      <ArrowUpRight className="ml-auto mt-2 h-3.5 w-3.5 text-zinc-500 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-indigo-400" aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : engineMode === "webgpu" && !isWebLLMReady ? (
               <div className="flex min-h-[52vh] items-center justify-center px-4 py-8">
                 <section
                   aria-label="WebGPU 模型初始化"
@@ -640,23 +704,6 @@ function App() {
                     </button>
                   </div>
                 </section>
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex min-h-[52vh] flex-col items-center justify-center px-4 text-center">
-                <div className="mb-5 grid size-12 place-items-center rounded-xl border border-zinc-800 bg-zinc-900 text-violet-300 shadow-lg shadow-black/20">
-                  <Sparkles className="size-5" aria-hidden="true" />
-                </div>
-                <h2 className="text-base font-medium text-zinc-200">
-                  What can I help you build?
-                </h2>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">
-                  选择本地推理引擎，开始一段私密、流畅的 Agent 对话。
-                </p>
-                <p className="mt-5 rounded-md border border-zinc-800/80 bg-zinc-900/60 px-3 py-1.5 text-[11px] text-zinc-500">
-                  {modelName
-                    ? `${engineMode === "ollama" ? "Ollama" : "WebGPU"} · ${modelName}`
-                    : "请从右上角选择一个可用模型"}
-                </p>
               </div>
             ) : (
               messages.map((message) => (
