@@ -21,12 +21,24 @@ interface ChatMessageBubbleProps {
 
 const markdownComponents: Components = {
     code({ children, className, ...props }) {
+        const matchLang = /language-(\w+)/.exec(className || "");
         const codeContent = String(children).replace(/\n$/, "");
-        const matchLanguage = className?.match(/language-([^\s]+)/)?.[1] ?? "text";
-        const isMultilineCodeBlock = Boolean(className) && codeContent.includes("\n");
+        let language = matchLang ? matchLang[1] : "";
 
-        if (isMultilineCodeBlock) {
-            return <CodeArtifactBox language={matchLanguage} code={codeContent} />;
+        if (
+            !language &&
+            /<!DOCTYPE html>|<html\b|<(?:style|script)\b/i.test(codeContent)
+        ) {
+            language = "html";
+        }
+
+        const isCodeBlock =
+            Boolean(matchLang) ||
+            codeContent.includes("\n") ||
+            String(children).endsWith("\n");
+
+        if (isCodeBlock && language) {
+            return <CodeArtifactBox language={language} code={codeContent} />;
         }
 
         return (

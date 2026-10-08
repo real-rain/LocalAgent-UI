@@ -13,6 +13,7 @@ import {
     type MLCEngine,
 } from "@mlc-ai/web-llm";
 import type { Message } from "../../types/chat";
+import { CODE_FORMATTING_SYSTEM_PROMPT } from "./systemPrompt";
 
 export interface StreamChunk {
     type: "thought_delta" | "text_delta";
@@ -135,7 +136,10 @@ export class WebLLMProvider {
 
         const parser = new StreamParser();
         const stream = await this.engine.chat.completions.create({
-            messages,
+            messages: [
+                { role: "system", content: CODE_FORMATTING_SYSTEM_PROMPT },
+                ...messages,
+            ],
             stream: true,
         });
 

@@ -1,3 +1,5 @@
+import { CODE_FORMATTING_SYSTEM_PROMPT } from "./systemPrompt";
+
 export interface OllamaMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -27,7 +29,10 @@ export class OllamaProvider {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: this.model,
-        messages,
+        messages: [
+          { role: "system", content: CODE_FORMATTING_SYSTEM_PROMPT },
+          ...messages,
+        ],
         stream: true,
       }),
       signal,
