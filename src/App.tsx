@@ -15,6 +15,7 @@ import {
   Sidebar,
   Trash2,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import githubIcon from "./assets/GitHub.svg";
 import logo from "./assets/logo.svg";
@@ -60,6 +61,9 @@ function App() {
   const createNewSession = useChatStore((state) => state.createNewSession);
   const deleteSession = useChatStore((state) => state.deleteSession);
   const addMessage = useChatStore((state) => state.addMessage);
+  const updateTitleFromFirstMessage = useChatStore(
+    (state) => state.updateTitleFromFirstMessage,
+  );
   const startGeneration = useChatStore((state) => state.startGeneration);
   const stopGeneration = useChatStore((state) => state.stopGeneration);
   const appendStreamChunk = useChatStore((state) => state.appendStreamChunk);
@@ -272,7 +276,24 @@ function App() {
 
   async function handleSendMessage(promptText: string) {
     const content = promptText.trim();
-    if (!content || isSending || abortControllerRef.current) return;
+    if (!content) {
+      if (isSending || abortControllerRef.current) return;
+      const { currentSessionId: sessionId, messages: currentMessages } =
+        useChatStore.getState();
+      if (sessionId && currentMessages.length === 0) {
+        try {
+          await updateTitleFromFirstMessage(sessionId, promptText);
+        } catch (cause) {
+          setRequestError(
+            cause instanceof Error
+              ? cause.message
+              : t("errors.unknownModelCommunication"),
+          );
+        }
+      }
+      return;
+    }
+    if (isSending || abortControllerRef.current) return;
     if (!modelName) {
       setRequestError(t("errors.selectModel"));
       return;
@@ -293,6 +314,8 @@ function App() {
       ) {
         return;
       }
+      await updateTitleFromFirstMessage(sessionId, content);
+      if (useChatStore.getState().currentSessionId !== sessionId) return;
       controller = new AbortController();
       abortControllerRef.current = controller;
       const createdAt = Date.now();
@@ -453,13 +476,20 @@ function App() {
                       aria-current={isCurrent ? "page" : undefined}
                       className="min-w-0 flex-1 px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                     >
-                      <span
+                      <motion.span
+                        key={session.title}
+                        title={session.title}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
                         className={`block truncate text-[13px] ${
-                          isCurrent ? "text-zinc-100" : "text-zinc-400"
+                          isCurrent
+                            ? "max-w-[180px] text-zinc-100"
+                            : "max-w-[180px] text-zinc-400"
                         }`}
                       >
                         {session.title || t("sidebar.newSession")}
-                      </span>
+                      </motion.span>
                       <span className="mt-1 block text-[10px] text-zinc-600">
                         {new Date(session.updatedAt).toLocaleDateString(
                           i18n.resolvedLanguage ?? i18n.language,

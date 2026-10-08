@@ -56,6 +56,13 @@ export async function saveMessage(message: Message): Promise<void> {
     await db.messages.put(message);
 }
 
+export async function clearMessagesBySession(sessionId: string): Promise<void> {
+    await db.transaction("rw", db.sessions, db.messages, async () => {
+        await db.messages.where("sessionId").equals(sessionId).delete();
+        await db.sessions.update(sessionId, { title: "New Chat" });
+    });
+}
+
 export async function getMessagesBySession(
     sessionId: string,
 ): Promise<Message[]> {

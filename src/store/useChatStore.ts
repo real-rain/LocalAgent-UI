@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import {
+  clearMessagesBySession,
   createSession,
   deleteSession as deleteSessionRecord,
+  db,
   getAllSessions,
   getMessagesBySession,
   saveMessage,
@@ -25,7 +27,11 @@ interface ChatState {
   appendStreamChunk: (id: string, chunk: StreamChunk) => void;
   setStreamingComplete: (id?: string) => Promise<void>;
   setStreamingFailed: (id?: string) => Promise<void>;
-  clearMessages: () => void;
+  updateTitleFromFirstMessage: (
+    sessionId: string,
+    inputPrompt: string,
+  ) => Promise<void>;
+  clearMessages: () => Promise<void>;
 }
 
 interface PendingStreamChunks {
@@ -164,6 +170,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({ messages: [...state.messages, message] }));
     await saveMessage(message);
   },
+  updateTitleFromFirstMessage: async (sessionId, inputPrompt) => {
+    const state = get();
+    if (state.currentSessionId !== sessionId || state.messages.length !== 0) {
+      return;
+    }
+
+    const dynamicTitle =
+      inputPrompt
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, 24)
+        .trimEnd() || "New Chat";
+    await db.sessions.update(sessionId, { title: dynamicTitle });
+    set((currentState) => ({
+      sessions: currentState.sessions.map((session) =>
+        session.id === sessionId
+          ? { ...session, title: dynamicTitle }
+          : session,
+      ),
+    }));
+  },
   startGeneration: (controller, id) => {
     activeAbortController = controller;
     activeStreamId = id;
@@ -270,8 +297,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     activeStreamId = null;
     await saveMessage(failedMessage);
   },
-  clearMessages: () => {
+  clearMessages: async () => {
     clearPendingStreamChunks();
-    set({ messages: [], isStreaming: false });
+    const { currentSessionId } = get();
+    if (currentSessionId) {
+      await clearMessagesBySession(currentSessionId);
+    }
+    set((state) => ({
+      messages: [],
+      isStreaming: false,
+      sessions: state.sessions.map((session) =>
+        session.id === currentSessionId
+          ? { ...session, title: "New Chat" }
+          : session,
+      ),
+    }));
   },
 }));
