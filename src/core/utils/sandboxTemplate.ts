@@ -103,9 +103,23 @@ ${PREVIEW_STYLES}
         return addStylesToDocument(code);
     }
 
-    const content = normalizedLanguage === "javascript"
-        ? `<script>${code.replace(/<\/script/gi, "<\\/script")}</script>`
-        : code;
+    if (normalizedLanguage === "css") {
+        return addStylesToDocument(
+            `<style>${code.replace(/<\/style/gi, "<\\/style")}</style>
+<main class="preview-fixture">
+  <h1>CSS Preview</h1>
+  <p>Use this sample content to inspect your styles.</p>
+  <button type="button">Example button</button>
+</main>`,
+        );
+    }
 
-    return addStylesToDocument(content);
+    if (normalizedLanguage === "js" || normalizedLanguage === "javascript") {
+        return addStylesToDocument(
+            `<main id="preview-root"><h1>JavaScript Preview</h1><p id="preview-status">Script is running…</p></main>
+<script>${code.replace(/<\/script/gi, "<\\/script")}</script>`,
+        );
+    }
+
+    return addStylesToDocument(code);
 }

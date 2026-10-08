@@ -13,13 +13,20 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     const thoughtProcess = message.thoughtProcess ?? "";
     const isStreaming = message.status === "streaming";
     const hasThoughtProcess = Boolean(thoughtProcess.trim());
-    const [isExpanded, setIsExpanded] = useState(
-        Boolean(thoughtProcess) || isStreaming,
-    );
+    const [isExpanded, setIsExpanded] = useState(isStreaming);
     const [promptIndex, setPromptIndex] = useState(0);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const contentId = useId();
     const startedAtRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (isStreaming) return;
+
+        const frame = window.requestAnimationFrame(() => {
+            setIsExpanded(false);
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [isStreaming, message.id]);
 
     useEffect(() => {
         if (!isStreaming) {

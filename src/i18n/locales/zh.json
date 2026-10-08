@@ -106,7 +106,20 @@
     "copyCodeError": "无法复制代码，请手动复制。",
     "artifactView": "代码产物视图",
     "previewTitle": "{{title}} 预览",
-    "agentDeepThinking": "Agent 深度思考"
+    "agentDeepThinking": "Agent 深度思考",
+    "mermaidDiagram": "Mermaid 流程图",
+    "renderingDiagram": "正在渲染流程图…",
+    "mermaidRenderError": "无法渲染 Mermaid 流程图"
+  },
+  "prompts": {
+    "label": "系统提示词预设",
+    "customPrompt": "自定义系统提示词",
+    "customPlaceholder": "输入系统提示词",
+    "presets": {
+      "codeAssistant": "代码助手",
+      "translator": "翻译",
+      "customAgent": "自定义 Agent"
+    }
   },
   "errors": {
     "webgpuInitializationFailed": "WebGPU 模型初始化失败。",
@@ -116,7 +129,8 @@
     "deleteSession": "无法删除会话。",
     "selectModel": "请先从右上角选择一个可用模型。",
     "webgpuUnavailable": "WebGPU 引擎初始化后不可用。",
-    "unknownModelCommunication": "与模型通信时发生未知错误。"
+    "unknownModelCommunication": "与模型通信时发生未知错误。",
+    "saveSessionSettings": "无法保存会话设置。"
   },
   "modelSelector": {
     "localEndpoints": "本地服务",

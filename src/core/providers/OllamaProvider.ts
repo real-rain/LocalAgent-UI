@@ -10,11 +10,7 @@
  */
 import { CODE_FORMATTING_SYSTEM_PROMPT } from "./systemPrompt";
 import { StreamParser, type StreamChunk } from "../parser/StreamParser";
-
-export interface OllamaMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
+import type { ChatProvider, ProviderMessage } from "./ChatProvider";
 
 interface OllamaStreamResponse {
   message?: {
@@ -26,26 +22,26 @@ interface OllamaStreamResponse {
   error?: string;
 }
 
-export class OllamaProvider {
-  private readonly model: string;
+export class OllamaProvider implements ChatProvider {
   private readonly baseUrl: string;
 
-  constructor(model: string, baseUrl = "http://localhost:11434") {
-    this.model = model;
+  constructor(baseUrl = "http://localhost:11434") {
     this.baseUrl = baseUrl;
   }
 
   async *chatStream(
-    messages: OllamaMessage[],
+    modelId: string,
+    messages: ProviderMessage[],
+    systemPrompt = CODE_FORMATTING_SYSTEM_PROMPT,
     signal?: AbortSignal,
   ): AsyncGenerator<StreamChunk> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: this.model,
+        model: modelId,
         messages: [
-          { role: "system", content: CODE_FORMATTING_SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
         options: {

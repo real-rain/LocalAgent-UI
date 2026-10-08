@@ -10,6 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
+import hljs from "highlight.js/lib/common";
 import { useTranslation } from "react-i18next";
 import { wrapSandboxHtml } from "../../core/utils/sandboxTemplate";
 
@@ -22,7 +23,13 @@ interface CodeArtifactBoxProps {
 
 type ArtifactTab = "code" | "preview";
 
-const PREVIEW_LANGUAGES = new Set(["html", "svg"]);
+const PREVIEW_LANGUAGES = new Set([
+    "html",
+    "svg",
+    "css",
+    "js",
+    "javascript",
+]);
 
 export function CodeArtifactBox({ language, code, previewCode, title }: CodeArtifactBoxProps) {
     const { t } = useTranslation();
@@ -35,6 +42,24 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
         () => wrapSandboxHtml(previewCode ?? code, language),
         [previewCode, code, language],
     );
+    const highlightedCode = useMemo(() => {
+        const normalizedLanguage =
+            language.toLowerCase() === "html" || language.toLowerCase() === "svg"
+                ? "xml"
+                : language.toLowerCase() === "js"
+                  ? "javascript"
+                  : language.toLowerCase();
+        try {
+            return hljs.getLanguage(normalizedLanguage)
+                ? hljs.highlight(code, {
+                      language: normalizedLanguage,
+                      ignoreIllegals: true,
+                  }).value
+                : hljs.highlightAuto(code).value;
+        } catch {
+            return hljs.highlightAuto(code).value;
+        }
+    }, [code, language]);
 
     useEffect(() => {
         function handleFullscreenChange() {
@@ -165,8 +190,10 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
                 </div>
             ) : (
                 <pre className="m-0 overflow-x-auto whitespace-pre bg-zinc-950 p-4 text-sm leading-6 text-zinc-100">
-                    <code className="!block !bg-transparent !p-0 !text-inherit !text-sm !leading-6">
-                        {code}
+                    <code
+                        className={`hljs !block !bg-transparent !p-0 !text-inherit !text-sm !leading-6 language-${language.toLowerCase()}`}
+                        dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                    >
                     </code>
                 </pre>
             )}

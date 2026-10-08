@@ -106,7 +106,20 @@
     "copyCodeError": "Unable to copy code. Please copy it manually.",
     "artifactView": "Artifact view",
     "previewTitle": "{{title}} preview",
-    "agentDeepThinking": "Agent deep thinking"
+    "agentDeepThinking": "Agent deep thinking",
+    "mermaidDiagram": "Mermaid diagram",
+    "renderingDiagram": "Rendering diagram…",
+    "mermaidRenderError": "Unable to render Mermaid diagram"
+  },
+  "prompts": {
+    "label": "System prompt preset",
+    "customPrompt": "Custom system prompt",
+    "customPlaceholder": "Enter a system prompt",
+    "presets": {
+      "codeAssistant": "Code Assistant",
+      "translator": "Translator",
+      "customAgent": "Custom Agent"
+    }
   },
   "errors": {
     "webgpuInitializationFailed": "Failed to initialize the WebGPU model.",
@@ -116,7 +129,8 @@
     "deleteSession": "Unable to delete the session.",
     "selectModel": "Select an available model from the top right first.",
     "webgpuUnavailable": "The WebGPU engine is unavailable after initialization.",
-    "unknownModelCommunication": "An unknown error occurred while communicating with the model."
+    "unknownModelCommunication": "An unknown error occurred while communicating with the model.",
+    "saveSessionSettings": "Unable to save session settings."
   },
   "modelSelector": {
     "localEndpoints": "LOCAL ENDPOINTS",

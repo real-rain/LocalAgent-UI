@@ -10,14 +10,23 @@
  */
 import Dexie, { type Table } from "dexie";
 import type { Message } from "../types/chat";
+import type { PromptPresetId } from "../core/providers/presets";
 
 export interface Session {
     id: string;
     title: string;
     model: string;
+    engine?: "ollama" | "webgpu";
+    presetId?: PromptPresetId;
+    customSystemPrompt?: string;
     createdAt: number;
     updatedAt: number;
 }
+
+export type SessionSettings = Pick<
+    Session,
+    "model" | "engine" | "presetId" | "customSystemPrompt"
+>;
 
 export class LocalAgentDatabase extends Dexie {
     sessions!: Table<Session, string>;
@@ -38,18 +47,32 @@ export const db = new LocalAgentDatabase();
 export async function createSession(
     title: string,
     model: string,
+    settings: Partial<SessionSettings> = {},
 ): Promise<Session> {
     const timestamp = Date.now();
     const session: Session = {
         id: crypto.randomUUID(),
         title,
-        model,
+        model: settings.model ?? model,
+        engine: settings.engine ?? "ollama",
+        presetId: settings.presetId ?? "code-assistant",
+        customSystemPrompt: settings.customSystemPrompt ?? "",
         createdAt: timestamp,
         updatedAt: timestamp,
     };
 
     await db.sessions.add(session);
     return session;
+}
+
+export async function updateSessionSettings(
+    sessionId: string,
+    settings: Partial<SessionSettings>,
+): Promise<void> {
+    await db.sessions.update(sessionId, {
+        ...settings,
+        updatedAt: Date.now(),
+    });
 }
 
 export async function saveMessage(message: Message): Promise<void> {

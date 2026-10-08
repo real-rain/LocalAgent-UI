@@ -40,7 +40,9 @@
 * **🔌 Hybrid Provider Architecture**:
   * **In-Browser WebGPU**: Runs 100% local, zero-backend LLMs (via `@mlc-ai/web-llm` in WebWorker).
   * **Ollama REST API**: Connects to local Ollama endpoints with dynamic health checks and auto-discovery of pulled models.
-* **🔒 100% Local-First Data Privacy**: Sessions, system prompts, and full chat histories stay strictly inside your browser's IndexedDB (via Dexie.js).
+* **🎭 Prompt Presets & Session Settings**: Includes Code Assistant, Translator, and Custom Agent prompts; engine, model, and prompt selection are stored per session in IndexedDB.
+* **📝 Rich Markdown**: Syntax-highlighted code, KaTeX math, and Mermaid diagrams render locally in the browser.
+* **🔒 100% Local-First Data Privacy**: Sessions, model settings, system prompts, and full chat histories stay strictly inside your browser's IndexedDB (via Dexie.js).
 * **💨 Anti-Jank Stream Pipeline**: Engineered with Zustand state buffering and RAF-throttled smart auto-scrolling for high-frequency token streams without UI jitter.
 
 ---
@@ -51,7 +53,7 @@
 * **Styling**: Tailwind CSS + Lucide Icons + Custom Modern Scrollbars
 * **State & DB**: Zustand + Dexie.js (IndexedDB)
 * **Inference Engines**: `@mlc-ai/web-llm` (WebGPU) & Ollama REST Endpoint
-* **Markdown & Syntax**: Custom React-Markdown parser with AST-level code block auto-merging
+* **Markdown & Syntax**: React-Markdown, highlight.js, KaTeX, and Mermaid
 
 ---
 

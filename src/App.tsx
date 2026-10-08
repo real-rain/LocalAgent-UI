@@ -23,8 +23,14 @@ import telegramIcon from "./assets/telegram.svg";
 import twitterIcon from "./assets/tuite-copy.svg";
 import ChatMessageBubble from "./components/chat/ChatMessageBubble";
 import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
+import { PromptPresetSelector } from "./components/chat/PromptPresetSelector";
 import { WebGPULoaderCard } from "./components/chat/WebGPULoaderCard";
 import { OllamaProvider } from "./core/providers/OllamaProvider";
+import type { ChatProvider } from "./core/providers/ChatProvider";
+import {
+  getPresetPrompt,
+  type PromptPresetId,
+} from "./core/providers/presets";
 import { useAutoScroll } from "./hooks/useAutoScroll";
 import { useChatStore } from "./store/useChatStore";
 import type { Message } from "./types/chat";
@@ -60,6 +66,9 @@ function App() {
   const switchSession = useChatStore((state) => state.switchSession);
   const createNewSession = useChatStore((state) => state.createNewSession);
   const deleteSession = useChatStore((state) => state.deleteSession);
+  const updateSessionSettings = useChatStore(
+    (state) => state.updateSessionSettings,
+  );
   const addMessage = useChatStore((state) => state.addMessage);
   const updateTitleFromFirstMessage = useChatStore(
     (state) => state.updateTitleFromFirstMessage,
@@ -72,6 +81,9 @@ function App() {
 
   const [engineMode, setEngineMode] = useState<Engine>("ollama");
   const [modelName, setModelName] = useState("");
+  const [promptPresetId, setPromptPresetId] =
+    useState<PromptPresetId>("code-assistant");
+  const [customSystemPrompt, setCustomSystemPrompt] = useState("");
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
@@ -162,6 +174,57 @@ function App() {
     setEngineMode(nextEngine);
     setModelName(nextModel);
     setEngineError(null);
+    if (currentSessionId) {
+      void updateSessionSettings(currentSessionId, {
+        engine: nextEngine,
+        model: nextModel,
+      }).catch((cause: unknown) => {
+        setRequestError(
+          cause instanceof Error ? cause.message : t("errors.saveSessionSettings"),
+        );
+      });
+    }
+  }
+
+  function applySessionSettings(sessionId: string) {
+    const session = useChatStore
+      .getState()
+      .sessions.find((item) => item.id === sessionId);
+    if (!session) return;
+
+    setEngineMode(session.engine ?? "ollama");
+    setModelName(session.model);
+    setPromptPresetId(session.presetId ?? "code-assistant");
+    setCustomSystemPrompt(session.customSystemPrompt ?? "");
+    setEngineError(null);
+  }
+
+  function handlePresetChange(presetId: PromptPresetId) {
+    setPromptPresetId(presetId);
+    if (currentSessionId) {
+      void updateSessionSettings(currentSessionId, { presetId }).catch(
+        (cause: unknown) => {
+          setRequestError(
+            cause instanceof Error
+              ? cause.message
+              : t("errors.saveSessionSettings"),
+          );
+        },
+      );
+    }
+  }
+
+  function handleCustomPromptChange(prompt: string) {
+    setCustomSystemPrompt(prompt);
+    if (currentSessionId) {
+      void updateSessionSettings(currentSessionId, {
+        customSystemPrompt: prompt,
+      }).catch((cause: unknown) => {
+        setRequestError(
+          cause instanceof Error ? cause.message : t("errors.saveSessionSettings"),
+        );
+      });
+    }
   }
 
   useEffect(() => {
@@ -193,6 +256,7 @@ function App() {
         const [latestSession] = useChatStore.getState().sessions;
         if (latestSession) {
           await switchSession(latestSession.id);
+          if (isActive) applySessionSettings(latestSession.id);
         }
       } catch (cause) {
         if (isActive) {
@@ -232,7 +296,12 @@ function App() {
       if (isStreaming || abortControllerRef.current) {
         await stopActiveStream();
       }
-      await createNewSession(modelName);
+      const session = await createNewSession(modelName, {
+        engine: engineMode,
+        presetId: promptPresetId,
+        customSystemPrompt,
+      });
+      applySessionSettings(session.id);
       setInput("");
       window.requestAnimationFrame(() => inputRef.current?.focus());
     } catch (cause) {
@@ -250,6 +319,7 @@ function App() {
     setRequestError(null);
     try {
       await switchSession(sessionId);
+      applySessionSettings(sessionId);
     } catch (cause) {
       setRequestError(
         cause instanceof Error ? cause.message : t("errors.switchSession"),
@@ -267,6 +337,8 @@ function App() {
 
     try {
       await deleteSession(sessionId);
+      const nextSessionId = useChatStore.getState().currentSessionId;
+      if (nextSessionId) applySessionSettings(nextSessionId);
     } catch (cause) {
       setRequestError(
         cause instanceof Error ? cause.message : t("errors.deleteSession"),
@@ -307,7 +379,14 @@ function App() {
     let assistantMessageId: string | null = null;
     try {
       const sessionId =
-        currentSessionId ?? (await createNewSession(modelName)).id;
+        currentSessionId ??
+        (
+          await createNewSession(modelName, {
+            engine: engineMode,
+            presetId: promptPresetId,
+            customSystemPrompt,
+          })
+        ).id;
       if (
         currentSessionId !== sessionId &&
         useChatStore.getState().currentSessionId !== sessionId
@@ -346,28 +425,29 @@ function App() {
         .getState()
         .messages.filter((message) => message.id !== streamMessageId)
         .map(({ role, content: text }) => ({ role, content: text }));
+      let provider: ChatProvider;
       if (engineMode === "webgpu") {
         await handleInitWebLLM();
         if (!webLLMProvider) {
           throw new Error(t("errors.webgpuUnavailable"));
         }
-        for await (const chunk of webLLMProvider.chatStream(
-          modelName,
-          conversation,
-          controller.signal,
-        )) {
-          if (controller.signal.aborted) break;
-          appendStreamChunk(streamMessageId, chunk);
-        }
+        provider = webLLMProvider;
       } else {
-        const ollamaProvider = new OllamaProvider(modelName);
-        for await (const chunk of ollamaProvider.chatStream(
-          conversation,
-          controller.signal,
-        )) {
-          if (controller.signal.aborted) break;
-          appendStreamChunk(streamMessageId, chunk);
-        }
+        provider = new OllamaProvider();
+      }
+
+      const systemPrompt =
+        promptPresetId === "custom-agent"
+          ? customSystemPrompt.trim()
+          : getPresetPrompt(promptPresetId);
+      for await (const chunk of provider.chatStream(
+        modelName,
+        conversation,
+        systemPrompt,
+        controller.signal,
+      )) {
+        if (controller.signal.aborted) break;
+        appendStreamChunk(streamMessageId, chunk);
       }
 
       if (!controller.signal.aborted) {
@@ -631,18 +711,27 @@ function App() {
 
           <fieldset
             disabled={isStreaming}
-            className="min-w-0 max-w-[min(50vw,24rem)] justify-self-center border-0 p-0"
+            className="min-w-0 max-w-[min(70vw,40rem)] justify-self-center border-0 p-0"
           >
-            <ModelSelectorPopover
-              selectedEngine={engineMode}
-              selectedModel={modelName}
-              isWebLLMReady={isWebLLMReady}
-              isWebLLMLoading={isWebLLMLoading}
-              disabled={isStreaming}
-              onSelectEngine={(engine, model) =>
-                handleEngineChange(engine, model)
-              }
-            />
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <ModelSelectorPopover
+                selectedEngine={engineMode}
+                selectedModel={modelName}
+                isWebLLMReady={isWebLLMReady}
+                isWebLLMLoading={isWebLLMLoading}
+                disabled={isStreaming}
+                onSelectEngine={(engine, model) =>
+                  handleEngineChange(engine, model)
+                }
+              />
+              <PromptPresetSelector
+                presetId={promptPresetId}
+                customPrompt={customSystemPrompt}
+                disabled={isStreaming}
+                onPresetChange={handlePresetChange}
+                onCustomPromptChange={handleCustomPromptChange}
+              />
+            </div>
           </fieldset>
           <button
             type="button"

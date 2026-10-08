@@ -15,13 +15,14 @@ import {
 import { StreamParser, type StreamChunk } from "../parser/StreamParser";
 import type { Message } from "../../types/chat";
 import { WEBGPU_SMALL_MODEL_SYSTEM_PROMPT } from "./systemPrompt";
+import type { ChatProvider } from "./ChatProvider";
 
 export type { StreamChunk } from "../parser/StreamParser";
 
 const WEBGPU_UNSUPPORTED_MESSAGE =
     "当前浏览器或设备不支持 WebGPU，无法运行本地模型。请使用支持 WebGPU 的最新版浏览器和设备。";
 
-export class WebLLMProvider {
+export class WebLLMProvider implements ChatProvider {
     engine: MLCEngine | null = null;
     private loadedModelId: string | null = null;
 
@@ -68,6 +69,7 @@ export class WebLLMProvider {
     async *chatStream(
         modelId: string,
         messages: Pick<Message, "role" | "content">[],
+        systemPrompt = WEBGPU_SMALL_MODEL_SYSTEM_PROMPT,
         signal?: AbortSignal,
     ): AsyncGenerator<StreamChunk> {
         if (typeof navigator === "undefined" || !("gpu" in navigator)) {
@@ -103,7 +105,7 @@ export class WebLLMProvider {
 
             const stream = await engine.chat.completions.create({
                 messages: [
-                    { role: "system", content: WEBGPU_SMALL_MODEL_SYSTEM_PROMPT },
+                    { role: "system", content: systemPrompt },
                     ...messages,
                 ],
                 temperature: 0.6,

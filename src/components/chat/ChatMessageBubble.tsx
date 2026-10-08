@@ -9,9 +9,12 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
 import CodeArtifactBox from "../agent/CodeArtifactBox";
 import ThoughtAccordion from "../agent/ThoughtAccordion";
 import ToolCallCard from "../agent/ToolCallCard";
+import { MermaidDiagram } from "./MermaidDiagram";
 import type { Message } from "../../types/chat";
 import "./ChatMessageBubble.css";
 
@@ -120,6 +123,10 @@ function createMarkdownComponents(previewHtml?: string): Components {
                 String(children).endsWith("\n");
 
             if (isCodeBlock && language) {
+                if (language.toLowerCase() === "mermaid") {
+                    return <MermaidDiagram source={codeContent} />;
+                }
+
                 const useCombinedPreview =
                     !previewAssigned && language.toLowerCase() === "html" && previewHtml;
                 if (useCombinedPreview) previewAssigned = true;
@@ -182,7 +189,11 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
                 )}
 
                 <div className="chat-message__content">
-                    <ReactMarkdown components={markdownComponents}>
+                    <ReactMarkdown
+                        components={markdownComponents}
+                        remarkPlugins={[remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                    >
                         {message.content}
                     </ReactMarkdown>
                     {isAssistant && isStreaming && (

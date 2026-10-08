@@ -7,7 +7,9 @@ import {
   getAllSessions,
   getMessagesBySession,
   saveMessage,
+  updateSessionSettings as updateSessionSettingsRecord,
   type Session,
+  type SessionSettings,
 } from "../db/indexedDB";
 import type { Message } from "../types/chat";
 import type { StreamChunk } from "../core/parser/StreamParser";
@@ -19,7 +21,14 @@ interface ChatState {
   isStreaming: boolean;
   loadSessions: () => Promise<void>;
   switchSession: (sessionId: string) => Promise<void>;
-  createNewSession: (model?: string) => Promise<Session>;
+  createNewSession: (
+    model?: string,
+    settings?: Partial<SessionSettings>,
+  ) => Promise<Session>;
+  updateSessionSettings: (
+    sessionId: string,
+    settings: Partial<SessionSettings>,
+  ) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   addMessage: (message: Message) => Promise<void>;
   startGeneration: (controller: AbortController, id: string) => void;
@@ -135,13 +144,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const messages = await getMessagesBySession(sessionId);
     set({ currentSessionId: sessionId, messages, isStreaming: false });
   },
-  createNewSession: async (model = "") => {
+  createNewSession: async (model = "", settings = {}) => {
     if (get().isStreaming) {
       await get().stopGeneration();
     }
     clearPendingStreamChunks();
 
-    const session = await createSession("新会话", model);
+    const session = await createSession("新会话", model, settings);
     set((state) => ({
       sessions: [session, ...state.sessions],
       currentSessionId: session.id,
@@ -149,6 +158,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: false,
     }));
     return session;
+  },
+  updateSessionSettings: async (sessionId, settings) => {
+    await updateSessionSettingsRecord(sessionId, settings);
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.id === sessionId
+          ? { ...session, ...settings, updatedAt: Date.now() }
+          : session,
+      ),
+    }));
   },
   deleteSession: async (sessionId) => {
     await deleteSessionRecord(sessionId);
