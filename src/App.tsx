@@ -9,12 +9,16 @@ import {
 import {
   ArrowDown,
   Cpu,
+  Mail,
   Plus,
   Send,
   Sidebar,
   Sparkles,
   Trash2,
 } from "lucide-react";
+import githubIcon from "./assets/GitHub.svg";
+import telegramIcon from "./assets/telegram.svg";
+import twitterIcon from "./assets/tuite-copy.svg";
 import ChatMessageBubble from "./components/chat/ChatMessageBubble";
 import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
 import { OllamaProvider } from "./core/providers/OllamaProvider";
@@ -26,6 +30,8 @@ import type { WebLLMProvider } from "./core/providers/WebLLMProvider";
 let webLLMProvider: WebLLMProvider | null = null;
 
 type Engine = "ollama" | "webgpu";
+
+const CONTACT_EMAIL = "1936648485@qq.com";
 
 function App() {
   const sessions = useChatStore((state) => state.sessions);
@@ -51,6 +57,7 @@ function App() {
   const [webLLMProgress, setWebLLMProgress] = useState("");
   const [engineError, setEngineError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [copyToast, setCopyToast] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isStreaming = messages.some((message) => message.status === "streaming");
   const {
@@ -60,6 +67,21 @@ function App() {
   } = useAutoScroll(messages, isStreaming);
   const abortControllerRef = useRef<AbortController | null>(null);
   const webGPUInitializationRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    if (!copyToast) return;
+    const timeout = window.setTimeout(() => setCopyToast(null), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [copyToast]);
+
+  async function handleCopyContact() {
+    try {
+      await navigator.clipboard.writeText(CONTACT_EMAIL);
+      setCopyToast(`已复制联系邮箱 ${CONTACT_EMAIL}！`);
+    } catch {
+      setCopyToast("复制失败：请检查浏览器剪贴板权限。");
+    }
+  }
 
   const initializeWebGPU = useCallback((modelId: string): Promise<void> => {
     if (webGPUInitializationRef.current) {
@@ -377,6 +399,80 @@ function App() {
               会话安全保存在本地 IndexedDB
             </p>
           </div>
+
+          <footer className="relative border-t border-zinc-800/80 bg-zinc-950/50 p-3">
+            {copyToast && (
+              <p
+                role="status"
+                aria-live="polite"
+                className="absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded border border-zinc-800 bg-zinc-900/90 px-2 py-1 text-xs text-zinc-200 shadow-lg backdrop-blur"
+              >
+                {copyToast}
+              </p>
+            )}
+            <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+              <span
+                aria-label="Live"
+                className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]"
+              />
+              <span>Created by @real-rain</span>
+            </div>
+            <div className="mt-2 flex items-center gap-1">
+              <a
+                href="https://github.com/real-rain"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="GitHub: real-rain"
+                title="GitHub: real-rain"
+                className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              >
+                <img
+                  src={githubIcon}
+                  alt=""
+                  className="size-4 brightness-0 invert opacity-60 transition-opacity group-hover:opacity-100"
+                />
+              </a>
+              <a
+                href="https://x.com/realrain___"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="X: realrain___"
+                title="X: realrain___"
+                className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              >
+                <img
+                  src={twitterIcon}
+                  alt=""
+                  className="size-4 brightness-0 invert opacity-60 transition-opacity group-hover:opacity-100"
+                />
+              </a>
+              <a
+                href="https://t.me/real_rain"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Telegram: real_rain"
+                title="Telegram: real_rain"
+                className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              >
+                <img
+                  src={telegramIcon}
+                  alt=""
+                  className="size-4 transition-opacity group-hover:opacity-80"
+                />
+              </a>
+              <button
+                type="button"
+                aria-label="复制 Email 联系邮箱"
+                onClick={() => void handleCopyContact()}
+                className="group relative grid size-8 cursor-pointer place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              >
+                <Mail className="size-4" aria-hidden="true" />
+                <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded border border-zinc-800 bg-zinc-900/90 px-2 py-1 text-xs text-zinc-200 shadow-lg backdrop-blur group-hover:block group-focus-visible:block">
+                  Contact: {CONTACT_EMAIL} (Click to Copy)
+                </span>
+              </button>
+            </div>
+          </footer>
         </aside>
       )}
 
