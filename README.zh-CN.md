@@ -67,6 +67,29 @@ npm install
 npm run dev
 ```
 
+### ⚙️ 本地 Ollama CORS 配置指南
+
+从托管的网站域名（例如 Vercel / GitHub Pages）访问 `LocalAgent-UI` 时，如果未配置 `OLLAMA_ORIGINS`，浏览器会因 CORS（跨域资源共享）策略阻止向本地 Ollama（`http://localhost:11434`）发送请求。
+
+#### 🪟 Windows（推荐）
+1. 按 `Win + R`，输入 `sysdm.cpl`，然后按 Enter。
+2. 切换到**高级**选项卡，点击**环境变量**。
+3. 在**用户变量**下，点击**新建**：
+   - **变量名**：`OLLAMA_ORIGINS`
+   - **变量值**：`*`
+4. 点击**确定**保存。
+5. 右键点击系统托盘中的 Ollama 图标，选择**退出 Ollama**，然后从开始菜单重新启动 Ollama。
+
+*（也可以在 PowerShell 中以管理员身份运行一次：`[System.Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS', '*', 'User')`）*
+
+---
+
+#### 🍎 macOS / Linux
+在终端中设置 `OLLAMA_ORIGINS` 环境变量并启动 Ollama：
+```bash
+OLLAMA_ORIGINS="*" ollama serve
+```
+
 ## 📬 作者与社区
 ### 由 ☔[@real-rain](https://github.com/real-rain) 用 ❤️ 制作
 ### 联系方式 / 邮箱：1936648485@qq.com

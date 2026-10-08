@@ -68,6 +68,29 @@ npm install
 npm run dev
 ```
 
+### ⚙️ Local Ollama CORS Setup Guide
+
+When accessing `LocalAgent-UI` from a hosted web domain (e.g., Vercel / GitHub Pages), your browser will block requests to local Ollama (`http://localhost:11434`) due to CORS policies unless `OLLAMA_ORIGINS` is configured.
+
+#### 🪟 Windows (Recommended)
+1. Press `Win + R`, type `sysdm.cpl`, and press Enter.
+2. Go to **Advanced** tab -> Click **Environment Variables**.
+3. Under **User variables**, click **New**:
+   - **Variable name**: `OLLAMA_ORIGINS`
+   - **Variable value**: `*`
+4. Click **OK** to save.
+5. Right-click the Ollama icon in the system tray and select **Quit Ollama**, then re-launch Ollama from the Start Menu.
+
+*(Or run in PowerShell as Administrator once: `[System.Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS', '*', 'User')`)*
+
+---
+
+#### 🍎 macOS / Linux
+Run Ollama with the `OLLAMA_ORIGINS` environment variable in your terminal:
+```bash
+OLLAMA_ORIGINS="*" ollama serve
+```
+
 ## 📬 Author & Community
 ### Created with ❤️ by ☔[@real-rain](https://github.com/real-rain)
 ### Contact / Email: 1936648485@qq.com
