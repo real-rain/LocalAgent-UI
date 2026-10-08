@@ -14,14 +14,17 @@ interface ChatState {
   sessions: Session[];
   currentSessionId: string | null;
   messages: Message[];
+  isStreaming: boolean;
   loadSessions: () => Promise<void>;
   switchSession: (sessionId: string) => Promise<void>;
   createNewSession: (model?: string) => Promise<Session>;
   deleteSession: (sessionId: string) => Promise<void>;
   addMessage: (message: Message) => Promise<void>;
+  startGeneration: (controller: AbortController, id: string) => void;
+  stopGeneration: () => Promise<void>;
   appendStreamChunk: (id: string, chunk: StreamChunk) => void;
   setStreamingComplete: (id?: string) => Promise<void>;
-  setStreamingFailed: () => Promise<void>;
+  setStreamingFailed: (id?: string) => Promise<void>;
   clearMessages: () => void;
 }
 
@@ -33,6 +36,20 @@ interface PendingStreamChunks {
 const pendingStreamChunks = new Map<string, PendingStreamChunks>();
 let streamFlushHandle: number | null = null;
 let streamFlushUsesTimeout = false;
+let activeAbortController: AbortController | null = null;
+let activeStreamId: string | null = null;
+
+function clearPendingStreamChunks(): void {
+  pendingStreamChunks.clear();
+  if (streamFlushHandle === null) return;
+
+  if (streamFlushUsesTimeout) {
+    window.clearTimeout(streamFlushHandle);
+  } else {
+    window.cancelAnimationFrame(streamFlushHandle);
+  }
+  streamFlushHandle = null;
+}
 
 function flushPendingStreamChunks(): void {
   if (streamFlushHandle !== null) {
@@ -99,6 +116,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessions: [],
   currentSessionId: null,
   messages: [],
+  isStreaming: false,
   loadSessions: async () => {
     const sessions = await getAllSessions();
     set({
@@ -106,16 +124,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
   switchSession: async (sessionId) => {
-    flushPendingStreamChunks();
+    await get().stopGeneration();
+    clearPendingStreamChunks();
     const messages = await getMessagesBySession(sessionId);
-    set({ currentSessionId: sessionId, messages });
+    set({ currentSessionId: sessionId, messages, isStreaming: false });
   },
   createNewSession: async (model = "") => {
+    if (get().isStreaming) {
+      await get().stopGeneration();
+    }
+    clearPendingStreamChunks();
+
     const session = await createSession("新会话", model);
     set((state) => ({
       sessions: [session, ...state.sessions],
+      currentSessionId: session.id,
+      messages: [],
+      isStreaming: false,
     }));
-    await get().switchSession(session.id);
     return session;
   },
   deleteSession: async (sessionId) => {
@@ -125,7 +151,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     set({
       sessions,
-      ...(wasCurrent ? { currentSessionId: null, messages: [] } : {}),
+      ...(wasCurrent
+        ? { currentSessionId: null, messages: [], isStreaming: false }
+        : {}),
     });
 
     if (wasCurrent && sessions[0]) {
@@ -136,7 +164,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({ messages: [...state.messages, message] }));
     await saveMessage(message);
   },
+  startGeneration: (controller, id) => {
+    activeAbortController = controller;
+    activeStreamId = id;
+    set({ isStreaming: true });
+  },
+  stopGeneration: async () => {
+    const streamId = activeStreamId;
+    activeAbortController?.abort();
+    activeAbortController = null;
+    activeStreamId = null;
+    clearPendingStreamChunks();
+
+    const failedMessage = streamId
+      ? get().messages.find(
+          (message) => message.id === streamId && message.status === "streaming",
+        )
+      : undefined;
+    if (failedMessage) {
+      const stoppedMessage: Message = { ...failedMessage, status: "error" };
+      set((state) => ({
+        isStreaming: false,
+        messages: state.messages.map((message) =>
+          message.id === stoppedMessage.id ? stoppedMessage : message,
+        ),
+      }));
+      await saveMessage(stoppedMessage);
+      return;
+    }
+
+    set({ isStreaming: false });
+  },
   appendStreamChunk: (id, chunk) => {
+    if (
+      activeStreamId !== id ||
+      !get().messages.some(
+        (message) => message.id === id && message.status === "streaming",
+      )
+    ) {
+      return;
+    }
+
     const pending = pendingStreamChunks.get(id) ?? {
       content: [],
       thoughtProcess: [],
@@ -150,6 +218,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     scheduleStreamFlush();
   },
   setStreamingComplete: async (id) => {
+    if (id && activeStreamId !== id) return;
     flushPendingStreamChunks();
     const message = get().messages.find(
       (item) =>
@@ -162,37 +231,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const completedMessage: Message = { ...message, status: "complete" };
     set((state) => ({
+      isStreaming: false,
       messages: state.messages.map((item) =>
         item.id === completedMessage.id ? completedMessage : item,
       ),
     }));
+    activeAbortController = null;
+    activeStreamId = null;
     await saveMessage(completedMessage);
   },
-  setStreamingFailed: async () => {
+  setStreamingFailed: async (id) => {
+    if (id && activeStreamId !== id) return;
     flushPendingStreamChunks();
     const message = get().messages.findLast(
-      (item) => item.role === "assistant" && item.status === "streaming",
+      (item) =>
+        item.role === "assistant" &&
+        item.status === "streaming" &&
+        (!id || item.id === id) &&
+        (!activeStreamId || item.id === activeStreamId),
     );
-    if (!message) return;
+    if (!message) {
+      if (!id || id === activeStreamId) {
+        activeAbortController = null;
+        activeStreamId = null;
+        set({ isStreaming: false });
+      }
+      return;
+    }
 
     const failedMessage: Message = { ...message, status: "error" };
     set((state) => ({
+      isStreaming: false,
       messages: state.messages.map((item) =>
         item.id === failedMessage.id ? failedMessage : item,
       ),
     }));
+    activeAbortController = null;
+    activeStreamId = null;
     await saveMessage(failedMessage);
   },
   clearMessages: () => {
-    pendingStreamChunks.clear();
-    if (streamFlushHandle !== null) {
-      if (streamFlushUsesTimeout) {
-        window.clearTimeout(streamFlushHandle);
-      } else {
-        window.cancelAnimationFrame(streamFlushHandle);
-      }
-      streamFlushHandle = null;
-    }
-    set({ messages: [] });
+    clearPendingStreamChunks();
+    set({ messages: [], isStreaming: false });
   },
 }));

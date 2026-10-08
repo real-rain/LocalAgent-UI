@@ -72,6 +72,7 @@ export class OllamaProvider {
     const decoder = new TextDecoder();
     const parser = new StreamParser();
     let buffer = "";
+    let streamDone = false;
 
     function readLine(line: string): OllamaStreamResponse | undefined {
       if (!line.trim()) return undefined;
@@ -110,6 +111,7 @@ export class OllamaProvider {
         }
 
         if (done) {
+          streamDone = true;
           const data = readLine(buffer);
           if (data) {
             for (const chunk of parseResponse(data)) yield chunk;
@@ -119,6 +121,9 @@ export class OllamaProvider {
         }
       }
     } finally {
+      if (!streamDone) {
+        await reader.cancel(signal?.reason);
+      }
       reader.releaseLock();
     }
   }

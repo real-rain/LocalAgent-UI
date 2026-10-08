@@ -60,6 +60,8 @@ function App() {
   const createNewSession = useChatStore((state) => state.createNewSession);
   const deleteSession = useChatStore((state) => state.deleteSession);
   const addMessage = useChatStore((state) => state.addMessage);
+  const startGeneration = useChatStore((state) => state.startGeneration);
+  const stopGeneration = useChatStore((state) => state.stopGeneration);
   const appendStreamChunk = useChatStore((state) => state.appendStreamChunk);
   const setStreamingComplete = useChatStore((state) => state.setStreamingComplete);
   const setStreamingFailed = useChatStore((state) => state.setStreamingFailed);
@@ -79,15 +81,14 @@ function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isWebLLMReady =
     engineMode === "webgpu" && webLLMReadyModel === modelName;
-  const isStreaming = useChatStore((state) =>
-    state.messages.some((message) => message.status === "streaming"),
-  );
+  const isStreaming = useChatStore((state) => state.isStreaming);
   const {
     scrollRef: scrollContainerRef,
     isAtBottom,
     scrollToBottom,
   } = useAutoScroll(messages, isStreaming);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isCreatingSessionRef = useRef(false);
   const webGPUInitializationRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
@@ -205,35 +206,43 @@ function App() {
     };
   }, [loadSessions, switchSession, t]);
 
-  function stopActiveStream() {
-    if (!abortControllerRef.current) return;
-    abortControllerRef.current.abort();
+  async function stopActiveStream() {
+    if (!abortControllerRef.current && !isStreaming) return;
+    abortControllerRef.current?.abort();
     abortControllerRef.current = null;
-    void setStreamingFailed().catch((cause: unknown) => {
+    setIsSending(false);
+    await stopGeneration().catch((cause: unknown) => {
       setRequestError(
         cause instanceof Error
           ? cause.message
           : t("errors.unknownModelCommunication"),
       );
     });
-    setIsSending(false);
   }
 
   async function handleNewChat() {
-    stopActiveStream();
+    if (isCreatingSessionRef.current) return;
+    isCreatingSessionRef.current = true;
     setRequestError(null);
     try {
+      if (isStreaming || abortControllerRef.current) {
+        await stopActiveStream();
+      }
       await createNewSession(modelName);
+      setInput("");
+      window.requestAnimationFrame(() => inputRef.current?.focus());
     } catch (cause) {
       setRequestError(
         cause instanceof Error ? cause.message : t("errors.createSession"),
       );
+    } finally {
+      isCreatingSessionRef.current = false;
     }
   }
 
   async function handleSwitchSession(sessionId: string) {
     if (sessionId === currentSessionId) return;
-    stopActiveStream();
+    await stopActiveStream();
     setRequestError(null);
     try {
       await switchSession(sessionId);
@@ -249,7 +258,7 @@ function App() {
     sessionId: string,
   ) {
     event.stopPropagation();
-    if (sessionId === currentSessionId) stopActiveStream();
+    if (sessionId === currentSessionId) await stopActiveStream();
     setRequestError(null);
 
     try {
@@ -263,21 +272,29 @@ function App() {
 
   async function handleSendMessage(promptText: string) {
     const content = promptText.trim();
-    if (!content || abortControllerRef.current) return;
+    if (!content || isSending || abortControllerRef.current) return;
     if (!modelName) {
       setRequestError(t("errors.selectModel"));
       return;
     }
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
     setInput("");
     setRequestError(null);
     setIsSending(true);
 
+    let controller: AbortController | null = null;
+    let assistantMessageId: string | null = null;
     try {
       const sessionId =
         currentSessionId ?? (await createNewSession(modelName)).id;
+      if (
+        currentSessionId !== sessionId &&
+        useChatStore.getState().currentSessionId !== sessionId
+      ) {
+        return;
+      }
+      controller = new AbortController();
+      abortControllerRef.current = controller;
       const createdAt = Date.now();
       const userMessage: Message = {
         id: crypto.randomUUID(),
@@ -286,21 +303,25 @@ function App() {
         role: "user",
         content,
       };
-      const assistantMessageId = crypto.randomUUID();
+      const streamMessageId = crypto.randomUUID();
+      assistantMessageId = streamMessageId;
 
+      startGeneration(controller, streamMessageId);
       await addMessage(userMessage);
+      if (controller.signal.aborted) return;
       await addMessage({
-        id: assistantMessageId,
+        id: streamMessageId,
         sessionId,
         createdAt: Date.now(),
         role: "assistant",
         content: "",
         status: "streaming",
       });
+      if (controller.signal.aborted) return;
 
       const conversation = useChatStore
         .getState()
-        .messages.filter((message) => message.id !== assistantMessageId)
+        .messages.filter((message) => message.id !== streamMessageId)
         .map(({ role, content: text }) => ({ role, content: text }));
       if (engineMode === "webgpu") {
         await handleInitWebLLM();
@@ -312,7 +333,8 @@ function App() {
           conversation,
           controller.signal,
         )) {
-          appendStreamChunk(assistantMessageId, chunk);
+          if (controller.signal.aborted) break;
+          appendStreamChunk(streamMessageId, chunk);
         }
       } else {
         const ollamaProvider = new OllamaProvider(modelName);
@@ -320,31 +342,36 @@ function App() {
           conversation,
           controller.signal,
         )) {
-          appendStreamChunk(assistantMessageId, chunk);
+          if (controller.signal.aborted) break;
+          appendStreamChunk(streamMessageId, chunk);
         }
       }
 
       if (!controller.signal.aborted) {
-        await setStreamingComplete(assistantMessageId);
+        await setStreamingComplete(streamMessageId);
       }
     } catch (cause) {
-      if (!controller.signal.aborted) {
+      if (!controller?.signal.aborted) {
         setRequestError(
           cause instanceof Error
             ? cause.message
             : t("errors.unknownModelCommunication"),
         );
-        await setStreamingFailed().catch((failure: unknown) => {
-          setRequestError(
-            failure instanceof Error
-              ? failure.message
-              : t("errors.unknownModelCommunication"),
-          );
-        });
+        await setStreamingFailed(assistantMessageId ?? undefined).catch(
+          (failure: unknown) => {
+            setRequestError(
+              failure instanceof Error
+                ? failure.message
+                : t("errors.unknownModelCommunication"),
+            );
+          },
+        );
       }
     } finally {
-      if (abortControllerRef.current === controller) {
+      if (controller && abortControllerRef.current === controller) {
         abortControllerRef.current = null;
+        setIsSending(false);
+      } else if (!controller) {
         setIsSending(false);
       }
     }

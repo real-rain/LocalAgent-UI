@@ -84,45 +84,68 @@ export class WebLLMProvider {
             throw new Error("WebLLM 引擎初始化失败。");
         }
 
+        const engine = this.engine;
         const parser = new StreamParser();
-        const stream = await this.engine.chat.completions.create({
-            messages: [
-                { role: "system", content: WEBGPU_SMALL_MODEL_SYSTEM_PROMPT },
-                ...messages,
-            ],
-            temperature: 0.6,
-            top_p: 0.9,
-            stream: true,
-        });
+        let interruptPromise: Promise<void> | null = null;
+        const interrupt = () => {
+            if (!interruptPromise) {
+                interruptPromise = engine.interruptGenerate();
+                void interruptPromise.catch(() => undefined);
+            }
+        };
 
-        for await (const chunk of stream) {
+        signal?.addEventListener("abort", interrupt, { once: true });
+        try {
             if (signal?.aborted) {
-                await this.engine.interruptGenerate();
+                interrupt();
                 return;
             }
 
-            const delta = chunk.choices[0]?.delta;
-            const reasoningContent =
-                delta && "reasoning_content" in delta &&
-                typeof delta.reasoning_content === "string"
-                    ? delta.reasoning_content
-                    : undefined;
-            if (reasoningContent) {
-                for (const parsedChunk of parser.parseReasoning(reasoningContent)) {
+            const stream = await engine.chat.completions.create({
+                messages: [
+                    { role: "system", content: WEBGPU_SMALL_MODEL_SYSTEM_PROMPT },
+                    ...messages,
+                ],
+                temperature: 0.6,
+                top_p: 0.9,
+                stream: true,
+            });
+
+            for await (const chunk of stream) {
+                if (signal?.aborted) return;
+
+                const delta = chunk.choices[0]?.delta;
+                const reasoningContent =
+                    delta && "reasoning_content" in delta &&
+                    typeof delta.reasoning_content === "string"
+                        ? delta.reasoning_content
+                        : undefined;
+                if (reasoningContent) {
+                    for (const parsedChunk of parser.parseReasoning(reasoningContent)) {
+                        yield parsedChunk;
+                    }
+                }
+
+                const content = delta?.content;
+                if (!content) continue;
+
+                for (const parsedChunk of parser.parse(content)) {
                     yield parsedChunk;
                 }
             }
 
-            const content = delta?.content;
-            if (!content) continue;
-
-            for (const parsedChunk of parser.parse(content)) {
-                yield parsedChunk;
+            if (!signal?.aborted) {
+                for (const parsedChunk of parser.flush()) {
+                    yield parsedChunk;
+                }
             }
-        }
-
-        for (const parsedChunk of parser.flush()) {
-            yield parsedChunk;
+        } finally {
+            signal?.removeEventListener("abort", interrupt);
+            if (signal?.aborted) {
+                interrupt();
+                await interruptPromise;
+                await engine.resetChat();
+            }
         }
     }
 }
