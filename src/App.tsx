@@ -229,7 +229,10 @@ function App() {
         status: "streaming",
       });
 
-      const conversation = useChatStore.getState().messages;
+      const conversation = useChatStore
+        .getState()
+        .messages.filter((message) => message.id !== assistantMessageId)
+        .map(({ role, content: text }) => ({ role, content: text }));
       if (engineMode === "webgpu") {
         await initializeWebGPU(modelName);
         if (!webLLMProvider) {
@@ -247,13 +250,9 @@ function App() {
           );
         }
       } else {
-        const ollamaMessages = conversation.map(({ role, content: text }) => ({
-          role,
-          content: text,
-        }));
         const ollamaProvider = new OllamaProvider(modelName);
         for await (const chunk of ollamaProvider.chatStream(
-          ollamaMessages,
+          conversation,
           controller.signal,
         )) {
           appendStreamChunk(assistantMessageId, chunk);

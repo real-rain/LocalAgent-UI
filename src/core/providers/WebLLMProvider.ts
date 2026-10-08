@@ -116,7 +116,7 @@ export class WebLLMProvider {
 
     async *chatStream(
         modelId: string,
-        messages: Message[],
+        messages: Pick<Message, "role" | "content">[],
         signal?: AbortSignal,
     ): AsyncGenerator<StreamChunk> {
         if (typeof navigator === "undefined" || !("gpu" in navigator)) {
