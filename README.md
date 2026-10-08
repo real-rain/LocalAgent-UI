@@ -3,14 +3,12 @@
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 20:36:55
  * @LastEditors: realrain☔ 1936648485@qq.com
- * @LastEditTime: 2026-10-08 14:01:39
+ * @LastEditTime: 2026-10-08 14:06:11
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\README.md
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
 -->
-<img src="./src/assets/logo.svg" width="64" height="64" alt="LocalAgent-UI Logo" /> 
-
-# LocalAgent-UI
+<h1><img src="./src/assets/logo.svg" width="32" height="32" alt="LocalAgent-UI Logo" /> LocalAgent-UI</h1>
 
 > **Lightweight, Local-First AI Agent Workbench UI powered by WebGPU (WebLLM) and Ollama. Zero backend dependencies required.**
 
