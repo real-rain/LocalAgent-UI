@@ -1,3 +1,14 @@
+/*
+ * @Description: 按需加载 Mermaid，并根据源文本渲染图表。
+ * @Author: realrain☔ 1936648485@qq.com
+ * @Date: 2026-10-08 21:50:04
+ * @LastEditors: realrain☔ 1936648485@qq.com
+ * @LastEditTime: 2026-10-09 18:26:53
+ * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\components\chat\MermaidDiagram.tsx
+ * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
+ * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ */
+
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { normalizeMermaidSource } from "./normalizeMermaidSource";
@@ -8,6 +19,10 @@ interface MermaidDiagramProps {
 
 let mermaidInitialization: Promise<typeof import("mermaid")> | null = null;
 
+/**
+ * 初始化 Mermaid 模块并返回共享实例。
+ * @returns 在 Mermaid 模块初始化完成后兑现的 Promise。
+ */
 async function loadMermaid() {
     mermaidInitialization ??= import("mermaid").then((module) => {
         module.default.initialize({
@@ -20,6 +35,11 @@ async function loadMermaid() {
     return mermaidInitialization;
 }
 
+/**
+ * 渲染 Mermaid 图表，并以无障碍方式呈现加载状态或渲染错误。
+ * @param props Mermaid 图表源文本。
+ * @returns 已渲染的图表、加载状态或错误信息。
+ */
 export function MermaidDiagram({ source }: MermaidDiagramProps) {
     const { t } = useTranslation();
     const id = `mermaid-${useId().replace(/:/g, "")}`;

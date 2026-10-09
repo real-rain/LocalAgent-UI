@@ -1,3 +1,13 @@
+/*
+ * @Description: 展示助手消息的推理内容与实时思考状态。
+ * @Author: realrain☔ 1936648485@qq.com
+ * @Date: 2026-10-08 16:41:40
+ * @LastEditors: realrain☔ 1936648485@qq.com
+ * @LastEditTime: 2026-10-09 18:26:10
+ * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\components\agent\ThoughtAccordion.tsx
+ * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
+ * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ */
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Brain, ChevronDown, Loader2 } from "lucide-react";
@@ -8,6 +18,11 @@ interface ThoughtAccordionProps {
     message: Message;
 }
 
+/**
+ * 展示助手消息中可展开的推理内容及生成耗时。
+ * @param props 要显示推理内容和流式状态的消息。
+ * @returns 思考面板；没有可展示内容时返回 null。
+ */
 export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     const { t } = useTranslation();
     const thoughtProcess = message.thoughtProcess ?? "";
@@ -130,17 +145,16 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                     <span className="mt-1 block text-xs text-indigo-200/60">
                         {isStreaming
                             ? t("chat.thinkingElapsed", {
-                                  seconds: elapsedSeconds.toFixed(1),
-                              })
+                                seconds: elapsedSeconds.toFixed(1),
+                            })
                             : t("chat.thoughtFor", {
-                                  seconds: elapsedSeconds.toFixed(1),
-                              })}
+                                seconds: elapsedSeconds.toFixed(1),
+                            })}
                     </span>
                 </span>
                 <ChevronDown
-                    className={`size-4 shrink-0 text-indigo-300/70 transition-transform duration-200 ${
-                        isExpanded ? "rotate-180" : ""
-                    }`}
+                    className={`size-4 shrink-0 text-indigo-300/70 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
+                        }`}
                     aria-hidden="true"
                 />
             </button>

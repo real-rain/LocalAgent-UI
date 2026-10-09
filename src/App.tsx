@@ -1,3 +1,14 @@
+/*
+ * @Description: 组合本地聊天应用界面、会话控制与模型运行流程。
+ * @Author: realrain☔ 1936648485@qq.com
+ * @Date: 2026-10-07 21:30:13
+ * @LastEditors: realrain☔ 1936648485@qq.com
+ * @LastEditTime: 2026-10-09 18:35:59
+ * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\App.tsx
+ * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
+ * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ */
+
 import {
   useCallback,
   useEffect,
@@ -64,6 +75,10 @@ const starterSuggestions = [
   },
 ];
 
+/**
+ * 协调聊天状态、Provider 生命周期、会话导航与主界面。
+ * @returns 完整的 LocalAgent 聊天应用界面。
+ */
 function App() {
   const { t, i18n } = useTranslation();
   const sessions = useChatStore((state) => state.sessions);
@@ -152,6 +167,7 @@ function App() {
     setWebLLMProgress(t("chat.acceleratedEngineInitializing"));
     setIsWebLLMLoading(true);
 
+    // 共享并发初始化请求，避免切换模型时重复创建引擎。
     const initialization = import("./core/providers/WebLLMProvider")
       .then(({ WebLLMProvider: Provider }) => {
         webLLMProvider ??= new Provider();
@@ -431,7 +447,7 @@ function App() {
       const streamMessageId = crypto.randomUUID();
       assistantMessageId = streamMessageId;
 
-      startGeneration(controller, streamMessageId);
+      startGeneration(controller, streamMessageId, engineMode, modelName);
       await addMessage(userMessage);
       if (controller.signal.aborted) return;
       await addMessage({
@@ -448,6 +464,7 @@ function App() {
         .getState()
         .messages.filter((message) => message.id !== streamMessageId)
         .map(({ role, content: text }) => ({ role, content: text }));
+      // 按所选引擎选择 Provider，后续复用统一的流式消费与状态更新流程。
       let provider: ChatProvider;
       if (engineMode === "webgpu") {
         await handleInitWebLLM();
@@ -567,11 +584,10 @@ function App() {
                 return (
                   <div
                     key={session.id}
-                    className={`group flex items-center gap-1 rounded-lg border px-2 py-1.5 transition ${
-                      isCurrent
-                        ? "border-zinc-800 bg-zinc-900"
-                        : "border-transparent hover:bg-zinc-900/70"
-                    }`}
+                    className={`group flex items-center gap-1 rounded-lg border px-2 py-1.5 transition ${isCurrent
+                      ? "border-zinc-800 bg-zinc-900"
+                      : "border-transparent hover:bg-zinc-900/70"
+                      }`}
                   >
                     <button
                       type="button"
@@ -585,11 +601,10 @@ function App() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
-                        className={`block truncate text-[13px] ${
-                          isCurrent
-                            ? "max-w-[180px] text-zinc-100"
-                            : "max-w-[180px] text-zinc-400"
-                        }`}
+                        className={`block truncate text-[13px] ${isCurrent
+                          ? "max-w-[180px] text-zinc-100"
+                          : "max-w-[180px] text-zinc-400"
+                          }`}
                       >
                         {session.title || t("sidebar.newSession")}
                       </motion.span>
@@ -764,17 +779,16 @@ function App() {
             title={
               isStreaming
                 ? t(
-                    "header.disabledWhileGenerating",
-                    "Cannot change language while generating",
-                  )
+                  "header.disabledWhileGenerating",
+                  "Cannot change language while generating",
+                )
                 : t("common.switchLanguage")
             }
             onClick={handleLanguageToggle}
-            className={`shrink-0 justify-self-end px-2.5 py-1 text-xs rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
-              isStreaming
-                ? "opacity-50 cursor-not-allowed pointer-events-none"
-                : ""
-            }`}
+            className={`shrink-0 justify-self-end px-2.5 py-1 text-xs rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${isStreaming
+              ? "opacity-50 cursor-not-allowed pointer-events-none"
+              : ""
+              }`}
           >
             {i18n.resolvedLanguage?.startsWith("zh") ? "ZH" : "EN"}
           </button>
@@ -788,75 +802,75 @@ function App() {
             className="chat-messages-scroll h-full overflow-y-auto px-4 pb-8 pt-6 sm:px-6"
           >
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-            {engineMode === "webgpu" && !isWebLLMReady ? (
-              <WebGPULoaderCard
-                progress={webLLMProgress}
-                isLoading={isWebLLMLoading}
-                error={engineError}
-                onRetry={() => void handleInitWebLLM().catch(() => undefined)}
-              />
-            ) : messages.length === 0 ? (
-              <div className="flex min-h-[52vh] flex-col items-center justify-center py-8 text-center">
-                <img
-                  src={logo}
-                  alt={t("common.logoAlt")}
-                  className="w-12 h-12 mb-3 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
+              {engineMode === "webgpu" && !isWebLLMReady ? (
+                <WebGPULoaderCard
+                  progress={webLLMProgress}
+                  isLoading={isWebLLMLoading}
+                  error={engineError}
+                  onRetry={() => void handleInitWebLLM().catch(() => undefined)}
                 />
-                <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
-                  {t("chat.welcomeTitle")}
-                </h2>
-                <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
-                  {t("chat.welcomeDescription")}
-                </p>
-                <div className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-3 px-4 md:grid-cols-2">
-                  {starterSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      onClick={() =>
-                        setInput(t(`starterCards.${suggestion.id}.prompt`))
-                      }
-                      className="group flex cursor-pointer flex-col justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-left transition-all hover:border-zinc-700/80 hover:bg-zinc-800/80 hover:shadow-lg hover:shadow-indigo-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                    >
-                      <span className="w-fit rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-400 transition-colors group-hover:text-indigo-300">
-                        {t(`starterCards.${suggestion.id}.tag`)}
-                      </span>
-                      <span className="mt-2 text-sm font-semibold text-zinc-200 transition-colors group-hover:text-zinc-100">
-                        {t(`starterCards.${suggestion.id}.title`)}
-                      </span>
-                      <span className="mt-1 line-clamp-2 text-xs font-medium text-zinc-300 group-hover:text-zinc-100">
-                        {t(`starterCards.${suggestion.id}.description`)}
-                      </span>
-                      <ArrowUpRight className="ml-auto mt-2 h-3.5 w-3.5 text-zinc-500 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-indigo-400" aria-hidden="true" />
-                    </button>
-                  ))}
+              ) : messages.length === 0 ? (
+                <div className="flex min-h-[52vh] flex-col items-center justify-center py-8 text-center">
+                  <img
+                    src={logo}
+                    alt={t("common.logoAlt")}
+                    className="w-12 h-12 mb-3 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
+                  />
+                  <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
+                    {t("chat.welcomeTitle")}
+                  </h2>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
+                    {t("chat.welcomeDescription")}
+                  </p>
+                  <div className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-3 px-4 md:grid-cols-2">
+                    {starterSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() =>
+                          setInput(t(`starterCards.${suggestion.id}.prompt`))
+                        }
+                        className="group flex cursor-pointer flex-col justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-left transition-all hover:border-zinc-700/80 hover:bg-zinc-800/80 hover:shadow-lg hover:shadow-indigo-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      >
+                        <span className="w-fit rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-400 transition-colors group-hover:text-indigo-300">
+                          {t(`starterCards.${suggestion.id}.tag`)}
+                        </span>
+                        <span className="mt-2 text-sm font-semibold text-zinc-200 transition-colors group-hover:text-zinc-100">
+                          {t(`starterCards.${suggestion.id}.title`)}
+                        </span>
+                        <span className="mt-1 line-clamp-2 text-xs font-medium text-zinc-300 group-hover:text-zinc-100">
+                          {t(`starterCards.${suggestion.id}.description`)}
+                        </span>
+                        <ArrowUpRight className="ml-auto mt-2 h-3.5 w-3.5 text-zinc-500 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-indigo-400" aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <ChatMessageBubble key={message.id} message={message} />
-              ))
-            )}
-            {requestError && (
-              <div
-                role="alert"
-                className="rounded-lg border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-300"
-              >
-                {requestError}
-              </div>
-            )}
-            {storageError && (
-              <div
-                role="alert"
-                className="rounded-lg border border-amber-900/70 bg-amber-950/30 px-4 py-3 text-sm text-amber-200"
-              >
-                {t("errors.persistStream", {
-                  detail: storageError,
-                  defaultValue: `Unable to save this response locally: ${storageError}`,
-                })}
-              </div>
-            )}
-          </div>
+              ) : (
+                messages.map((message) => (
+                  <ChatMessageBubble key={message.id} message={message} />
+                ))
+              )}
+              {requestError && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-300"
+                >
+                  {requestError}
+                </div>
+              )}
+              {storageError && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-amber-900/70 bg-amber-950/30 px-4 py-3 text-sm text-amber-200"
+                >
+                  {t("errors.persistStream", {
+                    detail: storageError,
+                    defaultValue: `Unable to save this response locally: ${storageError}`,
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           {!isAtBottom && isStreaming && (
             <div className="absolute bottom-4 right-5 z-20 flex items-center gap-2">

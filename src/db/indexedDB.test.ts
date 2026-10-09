@@ -1,3 +1,14 @@
+/*
+ * @Description: 测试 IndexedDB 持久化、会话排序、流式响应恢复与提示词预设。
+ * @Author: realrain☔ 1936648485@qq.com
+ * @Date: 2026-10-09 14:59:54
+ * @LastEditors: realrain☔ 1936648485@qq.com
+ * @LastEditTime: 2026-10-09 18:32:35
+ * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\db\indexedDB.test.ts
+ * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
+ * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ */
+
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {

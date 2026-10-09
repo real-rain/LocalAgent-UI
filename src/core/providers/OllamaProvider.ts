@@ -29,6 +29,14 @@ export class OllamaProvider implements ChatProvider {
     this.baseUrl = baseUrl;
   }
 
+  /**
+   * 请求 Ollama 聊天补全，并逐步产出解析后的响应数据块。
+   * @param modelId Ollama 模型名称。
+   * @param messages 对话历史。
+   * @param systemPrompt 提供给模型的系统级指令。
+   * @param signal 用于取消请求的可选信号。
+   * @returns 包含推理内容与可见文本增量的异步数据流。
+   */
   async *chatStream(
     modelId: string,
     messages: ProviderMessage[],
@@ -98,6 +106,7 @@ export class OllamaProvider implements ChatProvider {
         const { value, done } = await reader.read();
         buffer += decoder.decode(value, { stream: !done });
 
+        // Ollama 每行输出一个 JSON 对象；末尾尚未完整的行留待下一块数据。
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
         for (const line of lines) {

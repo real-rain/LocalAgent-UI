@@ -1,5 +1,5 @@
 /*
- * @Description: 模型选择弹出框
+ * @Description: 提供本地 Ollama 与浏览器内 WebGPU 引擎的模型选择功能。
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 21:49:06
  * @LastEditors: realrain☔ 1936648485@qq.com
@@ -22,6 +22,11 @@ export interface ModelSelectorPopoverProps {
     onSelectEngine: (engine: 'ollama' | 'webgpu', model: string) => void;
 }
 
+/**
+ * 展示可用的 Ollama 与 WebGPU 模型及运行时就绪状态。
+ * @param props 当前引擎状态、模型选择回调及禁用状态。
+ * @returns 模型选择触发按钮及按需显示的弹出菜单。
+ */
 export function ModelSelectorPopover({
     selectedEngine,
     selectedModel,
@@ -58,6 +63,7 @@ export function ModelSelectorPopover({
 
         setIsLoadingWebGPUModels(true);
         setWebGPUModelsError(null);
+        // 复用进行中的模型列表请求，避免重复打开菜单时重复加载。
         webGPUModelsRequest.current = import('@mlc-ai/web-llm')
             .then(({ ModelType, prebuiltAppConfig }) => {
                 setWebGPUModels(
@@ -89,6 +95,7 @@ export function ModelSelectorPopover({
     const refreshHealth = useCallback(async () => {
         const currentCheckId = ++healthCheckId.current;
 
+        // 并行检测两个运行时，并且仅允许最新一次检测更新界面。
         const [webgpuResult, ollamaResult] = await Promise.all([
             checkWebGPUSupport(),
             fetchOllamaModels(),
@@ -311,19 +318,18 @@ export function ModelSelectorPopover({
                                         !webgpuStatus.isSupported
                                             ? t('modelSelector.unsupportedWebgpu')
                                             : isWebLLMLoading
-                                              ? t('modelSelector.modelSwitchDuringLoad')
-                                              : option.model
+                                                ? t('modelSelector.modelSwitchDuringLoad')
+                                                : option.model
                                     }
                                     disabled={isDisabled}
                                     onClick={() => {
                                         onSelectEngine('webgpu', option.model);
                                         setIsOpen(false);
                                     }}
-                                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors focus-visible:outline-none ${
-                                        isDisabled
+                                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors focus-visible:outline-none ${isDisabled
                                             ? 'cursor-not-allowed text-zinc-600'
                                             : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70'
-                                    }`}
+                                        }`}
                                 >
                                     <Cpu
                                         className={`h-4 w-4 shrink-0 ${isDisabled ? 'text-zinc-700' : 'text-zinc-500'}`}

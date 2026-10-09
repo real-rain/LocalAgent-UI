@@ -1,3 +1,14 @@
+/*
+ * @Description: 将模型流式输出拆分为可见文本增量与推理内容增量。
+ * @Author: realrain☔ 1936648485@qq.com
+ * @Date: 2026-10-08 15:56:19
+ * @LastEditors: realrain☔ 1936648485@qq.com
+ * @LastEditTime: 2026-10-09 18:29:16
+ * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\core\parser\StreamParser.ts
+ * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
+ * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ */
+
 export interface StreamChunk {
     type: "thought_delta" | "text_delta";
     content: string;
@@ -8,21 +19,38 @@ const THOUGHT_END_MARKERS = ["</think>", "[/reasoning]"];
 const THOUGHT_LIST_START =
     /^(?:分析|思考|梳理|理解|检查|评估|推演|analysis\b|analy[sz]e\b|thinking\b|think\b|review\b|consider\b|understand\b|inspect\b|identify\b)/i;
 
+/**
+ * 增量解析模型输出，并保留被拆分到多个数据块中的标记。
+ */
 export class StreamParser {
     private inThinkBlock = false;
     private buffer = "";
     private hasEmittedText = false;
 
+    /**
+     * 接收可见输出文本，并发出所有可安全分类的数据块。
+     * @param value 新收到的模型文本。
+     * @returns 解析后的推理内容与可见文本增量。
+     */
     parse(value: string): StreamChunk[] {
         if (!value) return [];
         this.buffer += value;
         return this.drain(false);
     }
 
+    /**
+     * 将 Provider 提供的推理内容直接转换为推理增量。
+     * @param value 从 Provider 收到的推理文本。
+     * @returns 有文本时返回推理增量，否则返回空数组。
+     */
     parseReasoning(value: string): StreamChunk[] {
         return value ? [{ type: "thought_delta", content: value }] : [];
     }
 
+    /**
+     * 在数据流结束时处理缓冲区中剩余的文本。
+     * @returns 剩余的推理内容与可见文本增量。
+     */
     flush(): StreamChunk[] {
         return this.drain(true);
     }
@@ -47,13 +75,14 @@ export class StreamParser {
                     continue;
                 }
 
+                // 保留可能是结束标记前缀的尾部，避免标记跨网络分块时被误输出。
                 const safeLength = flush
                     ? this.buffer.length
                     : this.buffer.length -
-                      this.possibleMarkerSuffixLength(
-                          THOUGHT_END_MARKERS,
-                          normalizedBuffer,
-                      );
+                    this.possibleMarkerSuffixLength(
+                        THOUGHT_END_MARKERS,
+                        normalizedBuffer,
+                    );
                 if (safeLength > 0) {
                     this.pushChunk(chunks, this.buffer.slice(0, safeLength));
                     this.buffer = this.buffer.slice(safeLength);
@@ -87,13 +116,14 @@ export class StreamParser {
                 break;
             }
 
+            // 未闭合的起始标记前缀也暂存到下一块，确认后再分类输出。
             const safeLength = flush
                 ? this.buffer.length
                 : this.buffer.length -
-                  this.possibleMarkerSuffixLength(
-                      THOUGHT_START_MARKERS,
-                      normalizedBuffer,
-                  );
+                this.possibleMarkerSuffixLength(
+                    THOUGHT_START_MARKERS,
+                    normalizedBuffer,
+                );
             if (safeLength > 0) {
                 this.pushChunk(chunks, this.buffer.slice(0, safeLength));
                 this.buffer = this.buffer.slice(safeLength);

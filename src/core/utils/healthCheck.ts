@@ -20,6 +20,11 @@ interface WebGPU {
     requestAdapter: () => Promise<unknown | null>;
 }
 
+/**
+ * 查询 Ollama 的 tags 接口并提取有效的模型名称。
+ * @param baseUrl 可选的 Ollama 服务基础 URL。
+ * @returns 服务连接状态、模型名称，以及服务不可用时的错误信息。
+ */
 export async function fetchOllamaModels(
     baseUrl = 'http://localhost:11434',
 ): Promise<{ isAlive: boolean; models: string[]; error?: string }> {
@@ -49,6 +54,10 @@ export async function fetchOllamaModels(
     }
 }
 
+/**
+ * 检查浏览器是否能够获取 WebGPU 适配器。
+ * @returns WebGPU 支持状态，以及不支持时的可选原因说明。
+ */
 export async function checkWebGPUSupport(): Promise<{
     isSupported: boolean;
     reason?: string;

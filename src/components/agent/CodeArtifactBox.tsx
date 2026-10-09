@@ -31,6 +31,11 @@ const PREVIEW_LANGUAGES = new Set([
     "javascript",
 ]);
 
+/**
+ * 渲染代码产物，并提供复制、全屏及受支持的预览操作。
+ * @param props 代码语言、源代码、可选预览代码与标题。
+ * @returns 代码产物面板。
+ */
 export function CodeArtifactBox({ language, code, previewCode, title }: CodeArtifactBoxProps) {
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<ArtifactTab>("code");
@@ -42,19 +47,20 @@ export function CodeArtifactBox({ language, code, previewCode, title }: CodeArti
         () => wrapSandboxHtml(previewCode ?? code, language),
         [previewCode, code, language],
     );
+    // 将语言别名映射为 highlight.js 支持的名称；找不到对应语法时使用自动识别。
     const highlightedCode = useMemo(() => {
         const normalizedLanguage =
             language.toLowerCase() === "html" || language.toLowerCase() === "svg"
                 ? "xml"
                 : language.toLowerCase() === "js"
-                  ? "javascript"
-                  : language.toLowerCase();
+                    ? "javascript"
+                    : language.toLowerCase();
         try {
             return hljs.getLanguage(normalizedLanguage)
                 ? hljs.highlight(code, {
-                      language: normalizedLanguage,
-                      ignoreIllegals: true,
-                  }).value
+                    language: normalizedLanguage,
+                    ignoreIllegals: true,
+                }).value
                 : hljs.highlightAuto(code).value;
         } catch {
             return hljs.highlightAuto(code).value;

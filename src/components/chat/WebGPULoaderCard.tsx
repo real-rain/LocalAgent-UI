@@ -1,3 +1,14 @@
+/*
+ * @Description: 展示 WebGPU 模型初始化进度、错误信息与重试操作。
+ * @Author: realrain☔ 1936648485@qq.com
+ * @Date: 2026-10-08 14:26:27
+ * @LastEditors: realrain☔ 1936648485@qq.com
+ * @LastEditTime: 2026-10-09 18:28:47
+ * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\components\chat\WebGPULoaderCard.tsx
+ * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
+ * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ */
+
 import { Cpu, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import logo from "../../assets/logo.svg";
@@ -9,6 +20,11 @@ interface WebGPULoaderCardProps {
   error?: string | null;
 }
 
+/**
+ * 展示 WebGPU 模型加载进度、错误信息及重试操作。
+ * @param props 运行进度、加载或错误状态及重试回调。
+ * @returns 模型初始化状态卡片。
+ */
 export function WebGPULoaderCard({
   progress,
   isLoading,
@@ -49,9 +65,8 @@ export function WebGPULoaderCard({
               )}
               <span className="absolute inset-0 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 shadow-[0_0_28px_rgba(99,102,241,0.2)]" />
               <Cpu
-                className={`relative size-5 text-indigo-300 ${
-                  isLoading ? "animate-pulse" : ""
-                }`}
+                className={`relative size-5 text-indigo-300 ${isLoading ? "animate-pulse" : ""
+                  }`}
                 aria-hidden="true"
               />
               <Zap

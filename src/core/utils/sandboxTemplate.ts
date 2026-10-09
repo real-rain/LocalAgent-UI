@@ -1,5 +1,5 @@
 /*
- * @Description: iframe 页面包装模板
+ * @Description: iframe 页面包装模板 将生成的 HTML、CSS、SVG 或 JavaScript 包装为可预览的文档。
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 22:30:35
  * @LastEditors: realrain☔ 1936648485@qq.com
@@ -28,6 +28,11 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 </style>`;
 
+/**
+ * 添加预览样式，并补齐缺失的文档结构。
+ * @param markup 要规范化的源标记。
+ * @returns 添加公共预览样式和文档标签后的标记内容。
+ */
 function addStylesToDocument(markup: string): string {
     const htmlOpen = /<html\b[^>]*>/i.exec(markup);
     const bodyExists = /<body\b[^>]*>/i.test(markup);
@@ -84,6 +89,12 @@ function addStylesToDocument(markup: string): string {
     return `<!doctype html><html>${head}<body>${documentMarkup}</body></html>`;
 }
 
+/**
+ * 创建适用于沙盒 iframe 渲染的完整文档。
+ * @param code 产物源代码。
+ * @param language 产物的语言标识符。
+ * @returns 根据产物类型配置的完整 HTML 文档。
+ */
 export function wrapSandboxHtml(code: string, language: string): string {
     const normalizedLanguage = language.toLowerCase();
 

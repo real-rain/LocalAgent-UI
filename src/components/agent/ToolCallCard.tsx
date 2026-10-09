@@ -1,5 +1,5 @@
 /*
- * @Description: 工具调用节点组件
+ * @Description: 展示工具调用状态，以及可展开查看的参数与结果。
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 20:00:39
  * @LastEditors: realrain☔ 1936648485@qq.com
@@ -22,6 +22,11 @@ interface ToolCallCardProps {
     toolCall: ToolCall;
 }
 
+/**
+ * 展示工具执行状态及可选的详细信息。
+ * @param props 要显示的工具调用数据。
+ * @returns 工具调用状态卡片。
+ */
 export function ToolCallCard({ toolCall }: ToolCallCardProps) {
     const [isOpen, setIsOpen] = useState(false);
     const contentId = useId();

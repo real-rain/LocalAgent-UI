@@ -1,5 +1,5 @@
 /*
- * @Description: 智能平滑滚动 Hook
+ * @Description: 在尊重用户手动滚动位置的同时，使聊天内容保持自动跟随到底部。
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 22:21:18
  * @LastEditors: realrain☔ 1936648485@qq.com
@@ -14,6 +14,12 @@ import type { Message } from "../types/chat";
 const BOTTOM_THRESHOLD = 100;
 const SCROLL_INTERVAL = 100;
 
+/**
+ * 提供滚动控制；当滚动位置接近底部时自动跟随新消息。
+ * @param messages 当前对话，用于检测新到达的流式内容。
+ * @param isStreaming 当前是否正在生成回复。
+ * @returns 滚动容器引用、是否位于底部的状态及主动滚动操作。
+ */
 export function useAutoScroll(messages: readonly Message[], isStreaming: boolean) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [isAtBottom, setIsAtBottom] = useState(true);

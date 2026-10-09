@@ -1,13 +1,14 @@
 /*
- * @Description: 综合消息气泡
+ * @Description: 渲染聊天消息、Markdown 代码产物、推理过程与工具调用结果。
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 20:03:10
  * @LastEditors: realrain☔ 1936648485@qq.com
- * @LastEditTime: 2026-10-07 20:07:52
+ * @LastEditTime: 2026-10-09 17:42:46
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\components\chat\ChatMessageBubble.tsx
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
+import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
@@ -28,6 +29,11 @@ interface MarkdownCodeBlock {
     code: string;
 }
 
+/**
+ * 从 Markdown 中提取围栏代码块，用于组合 HTML 预览。
+ * @param markdown Markdown 源文本。
+ * @returns 按源文本顺序排列且语言名称已规范化的代码块。
+ */
 function extractMarkdownCodeBlocks(markdown: string): MarkdownCodeBlock[] {
     const lines = markdown.split(/\r?\n/);
     const blocks: MarkdownCodeBlock[] = [];
@@ -53,6 +59,13 @@ function extractMarkdownCodeBlocks(markdown: string): MarkdownCodeBlock[] {
     return blocks;
 }
 
+/**
+ * 优先将标记插入指定文档标签的闭合标签之前，并在必要时尝试备用标签。
+ * @param html HTML 文档标记。
+ * @param tag 首选的目标元素。
+ * @param content 要插入的标记内容。
+ * @returns 插入内容后的标记；找不到目标标签时将内容追加到末尾。
+ */
 function insertBeforeTagEnd(
     html: string,
     tag: "head" | "body",
@@ -69,6 +82,11 @@ function insertBeforeTagEnd(
     return `${html}\n${content}`;
 }
 
+/**
+ * 将分开的 HTML、CSS 与 JavaScript 代码块组合为 HTML 预览文档。
+ * @param blocks 从 Markdown 中提取的代码块。
+ * @returns 能附加额外资源时返回组合后的 HTML，否则返回 undefined。
+ */
 function createCombinedHtml(blocks: MarkdownCodeBlock[]): string | undefined {
     const htmlBlock = blocks.find((block) => block.language === "html");
     if (!htmlBlock) return undefined;
@@ -90,6 +108,7 @@ function createCombinedHtml(blocks: MarkdownCodeBlock[]): string | undefined {
         /<link\b[^>]*\brel\s*=\s*["']?stylesheet\b/i.test(combinedHtml);
     const hasScript = /<script\b/i.test(combinedHtml);
 
+    // 仅当 HTML 代码块尚未包含样式或脚本时，才附加分离的资源。
     if (cssCode && !hasStylesheet) {
         const styleTag = `<style>\n${cssCode.replace(/<\/style/gi, "<\\/style")}\n</style>`;
         combinedHtml = insertBeforeTagEnd(combinedHtml, "head", styleTag);
@@ -102,6 +121,11 @@ function createCombinedHtml(blocks: MarkdownCodeBlock[]): string | undefined {
     return combinedHtml === htmlBlock.code ? undefined : combinedHtml;
 }
 
+/**
+ * 创建 React Markdown 渲染器，并将组合预览分配给对应的 HTML 代码块。
+ * @param previewHtml 由相邻代码块组合而成的可选 HTML 文档。
+ * @returns Markdown 代码元素的组件覆盖配置。
+ */
 function createMarkdownComponents(previewHtml?: string): Components {
     let previewAssigned = false;
 
@@ -150,6 +174,47 @@ function createMarkdownComponents(previewHtml?: string): Components {
     };
 }
 
+/**
+ * 显示消息生成过程中的实时或最终耗时与吞吐量。
+ * @param props 可选包含生成性能数据的消息。
+ * @returns 存在性能数据时返回性能页脚，否则返回 null。
+ */
+function MessagePerformanceFooter({ message }: ChatMessageBubbleProps) {
+    const performance = message.performance;
+    const startTime = performance?.startTime;
+    const isStreaming = message.status === "streaming";
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        if (startTime === undefined || !isStreaming) return;
+
+        const timer = window.setInterval(() => setNow(Date.now()), 100);
+        return () => window.clearInterval(timer);
+    }, [isStreaming, startTime]);
+
+    if (!performance) return null;
+
+    const endTime = performance.endTime ?? (isStreaming ? now : performance.startTime);
+    const generationTime = Math.max(0, (endTime - performance.startTime) / 1000);
+    const tokensPerSecond =
+        generationTime > 0 ? performance.totalTokens / generationTime : 0;
+    const engineName = performance.engine === "webgpu" ? "WebGPU" : "Ollama";
+
+    return (
+        <footer className="mt-2 flex justify-end">
+            <span className="text-xs font-mono text-zinc-500 opacity-80 transition-opacity hover:opacity-100">
+                ⚡ {tokensPerSecond.toFixed(1)} t/s · {generationTime.toFixed(1)}s ·{" "}
+                {engineName} ({performance.model})
+            </span>
+        </footer>
+    );
+}
+
+/**
+ * 渲染聊天消息，以及仅助手消息包含的推理内容、工具调用与性能数据。
+ * @param props 要渲染的消息。
+ * @returns 格式化后的聊天消息；已完成且内容为空的助手消息返回 null。
+ */
 export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
     const { t } = useTranslation();
     const isAssistant = message.role === "assistant";
@@ -213,6 +278,7 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
                         </span>
                     )}
                 </div>
+                {isAssistant && <MessagePerformanceFooter message={message} />}
             </article>
         </div>
     );

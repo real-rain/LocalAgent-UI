@@ -3,7 +3,7 @@
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 21:09:22
  * @LastEditors: realrain☔ 1936648485@qq.com
- * @LastEditTime: 2026-10-07 21:12:25
+ * @LastEditTime: 2026-10-09 18:31:09
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\core\providers\WebLLMProvider.ts
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
@@ -26,6 +26,12 @@ export class WebLLMProvider implements ChatProvider {
     engine: MLCEngine | null = null;
     private loadedModelId: string | null = null;
 
+    /**
+     * 创建或重新加载指定模型对应的 Worker 引擎。
+     * @param modelId WebLLM 模型标识符。
+     * @param onProgress 接收初始化进度信息的回调。
+     * @returns 引擎就绪后兑现的 Promise。
+     */
     async initEngine(
         modelId: string,
         onProgress: (progress: string) => void,
@@ -40,6 +46,7 @@ export class WebLLMProvider implements ChatProvider {
         }
 
         if (this.engine) {
+            // 切换模型时复用现有 Worker 引擎，避免重复创建。
             onProgress(`正在切换到模型 ${modelId}...`);
             await this.engine.reload(modelId);
             this.loadedModelId = modelId;
@@ -56,8 +63,7 @@ export class WebLLMProvider implements ChatProvider {
             const engine = await CreateWebWorkerMLCEngine(worker, modelId, {
                 initProgressCallback: (report) => onProgress(report.text),
             });
-            // The worker engine has the same chat/reload API, but the SDK types its
-            // factory separately from the main-thread MLCEngine class.
+            // Worker 引擎具有相同的 chat/reload API，但 SDK 将其工厂类型与主线程的 MLCEngine 分开定义。
             this.engine = engine as unknown as MLCEngine;
             this.loadedModelId = modelId;
         } catch (cause) {
@@ -66,6 +72,14 @@ export class WebLLMProvider implements ChatProvider {
         }
     }
 
+    /**
+     * 通过共享推理解析器流式处理 WebLLM 补全结果。
+     * @param modelId WebLLM 模型标识符。
+     * @param messages 对话历史。
+     * @param systemPrompt 提供给模型的系统级指令。
+     * @param signal 用于中断生成的可选信号。
+     * @returns 包含推理内容与可见文本增量的异步数据流。
+     */
     async *chatStream(
         modelId: string,
         messages: Pick<Message, "role" | "content">[],
@@ -96,6 +110,7 @@ export class WebLLMProvider implements ChatProvider {
             }
         };
 
+        // 将取消信号绑定到当前引擎请求，并在流式处理结束后解除绑定。
         signal?.addEventListener("abort", interrupt, { once: true });
         try {
             if (signal?.aborted) {
@@ -119,7 +134,7 @@ export class WebLLMProvider implements ChatProvider {
                 const delta = chunk.choices[0]?.delta;
                 const reasoningContent =
                     delta && "reasoning_content" in delta &&
-                    typeof delta.reasoning_content === "string"
+                        typeof delta.reasoning_content === "string"
                         ? delta.reasoning_content
                         : undefined;
                 if (reasoningContent) {
