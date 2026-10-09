@@ -104,6 +104,8 @@
     "codeCopied": "Code copied",
     "copyCode": "Copy code",
     "copyCodeError": "Unable to copy code. Please copy it manually.",
+    "openInSandbox": "Open in Sandbox",
+    "closeSandbox": "Close Sandbox",
     "artifactView": "Artifact view",
     "previewTitle": "{{title}} preview",
     "agentDeepThinking": "Agent deep thinking",

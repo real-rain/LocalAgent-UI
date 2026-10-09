@@ -104,6 +104,8 @@
     "codeCopied": "代码已复制",
     "copyCode": "复制代码",
     "copyCodeError": "无法复制代码，请手动复制。",
+    "openInSandbox": "在沙盒中打开",
+    "closeSandbox": "关闭沙盒",
     "artifactView": "代码产物视图",
     "previewTitle": "{{title}} 预览",
     "agentDeepThinking": "Agent 深度思考",

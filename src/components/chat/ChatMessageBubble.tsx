@@ -8,11 +8,13 @@
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import { useTranslation } from "react-i18next";
+import { Check, Copy, ExternalLink } from "lucide-react";
+import hljs from "highlight.js/lib/common";
 import CodeArtifactBox from "../agent/CodeArtifactBox";
 import ThoughtAccordion from "../agent/ThoughtAccordion";
 import ToolCallCard from "../agent/ToolCallCard";
@@ -126,6 +128,118 @@ function createCombinedHtml(blocks: MarkdownCodeBlock[]): string | undefined {
  * @param previewHtml 由相邻代码块组合而成的可选 HTML 文档。
  * @returns Markdown 代码元素的组件覆盖配置。
  */
+const SANDBOX_LANGUAGES = new Set(["html", "css", "js", "javascript", "react"]);
+
+interface MarkdownCodeBlockProps {
+    language: string;
+    code: string;
+    previewCode?: string;
+}
+
+function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockProps) {
+    const { t } = useTranslation();
+    const [copyStatus, setCopyStatus] = useState<"copied" | "error" | null>(null);
+    const [sandboxOpen, setSandboxOpen] = useState(false);
+    const supportsSandbox = SANDBOX_LANGUAGES.has(language.toLowerCase());
+    const highlightedCode = useMemo(() => {
+        const normalizedLanguage =
+            language.toLowerCase() === "html"
+                ? "xml"
+                : language.toLowerCase() === "js"
+                    ? "javascript"
+                    : language.toLowerCase();
+        try {
+            return hljs.getLanguage(normalizedLanguage)
+                ? hljs.highlight(code, {
+                    language: normalizedLanguage,
+                    ignoreIllegals: true,
+                }).value
+                : hljs.highlightAuto(code).value;
+        } catch {
+            return hljs.highlightAuto(code).value;
+        }
+    }, [code, language]);
+
+    useEffect(() => {
+        if (!copyStatus) return;
+        const timeout = window.setTimeout(() => setCopyStatus(null), 2000);
+        return () => window.clearTimeout(timeout);
+    }, [copyStatus]);
+
+    async function handleCopy() {
+        try {
+            await navigator.clipboard.writeText(code);
+            setCopyStatus("copied");
+        } catch {
+            setCopyStatus("error");
+        }
+    }
+
+    return (
+        <div className="my-3 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 text-left text-sm">
+            <header className="flex min-h-10 items-center gap-3 border-b border-zinc-700 bg-zinc-900 px-3 py-2">
+                <span className="shrink-0 rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs text-zinc-300">
+                    {language || "text"}
+                </span>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                    {supportsSandbox && (
+                        <button
+                            type="button"
+                            onClick={() => setSandboxOpen((open) => !open)}
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            aria-expanded={sandboxOpen}
+                        >
+                            <ExternalLink className="size-3.5" aria-hidden="true" />
+                            {sandboxOpen ? t("chat.closeSandbox") : t("chat.openInSandbox")}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => void handleCopy()}
+                        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        aria-label={copyStatus === "copied" ? "Copied!" : t("chat.copyCode")}
+                        title={copyStatus === "copied" ? "Copied!" : t("chat.copyCode")}
+                    >
+                        {copyStatus === "copied" ? (
+                            <>
+                                <Check className="size-3.5 text-emerald-400" aria-hidden="true" />
+                                Copied!
+                            </>
+                        ) : (
+                            <>
+                                <Copy className="size-3.5" aria-hidden="true" />
+                                {t("common.copy")}
+                            </>
+                        )}
+                    </button>
+                </div>
+            </header>
+            {copyStatus === "error" && (
+                <p
+                    className="border-b border-red-900 bg-red-950 px-3 py-2 text-xs text-red-300"
+                    role="alert"
+                >
+                    {t("chat.copyCodeError")}
+                </p>
+            )}
+            <pre className="m-0 overflow-x-auto whitespace-pre p-4 text-sm leading-6 text-zinc-100">
+                <code
+                    className={`hljs !block !bg-transparent !p-0 !text-inherit !text-sm !leading-6 ${language ? `language-${language.toLowerCase()}` : ""}`}
+                    dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                />
+            </pre>
+            {sandboxOpen && supportsSandbox && (
+                <CodeArtifactBox
+                    language={language}
+                    code={code}
+                    previewCode={previewCode}
+                    initialView="preview"
+                />
+            )}
+        </div>
+    );
+}
+
 function createMarkdownComponents(previewHtml?: string): Components {
     let previewAssigned = false;
 
@@ -147,7 +261,7 @@ function createMarkdownComponents(previewHtml?: string): Components {
                 codeContent.includes("\n") ||
                 String(children).endsWith("\n");
 
-            if (isCodeBlock && language) {
+            if (isCodeBlock) {
                 if (language.toLowerCase() === "mermaid") {
                     return <MermaidDiagram source={codeContent} />;
                 }
@@ -157,7 +271,7 @@ function createMarkdownComponents(previewHtml?: string): Components {
                 if (useCombinedPreview) previewAssigned = true;
 
                 return (
-                    <CodeArtifactBox
+                    <MarkdownCodeBlock
                         language={language}
                         code={codeContent}
                         previewCode={useCombinedPreview ? previewHtml : undefined}

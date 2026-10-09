@@ -19,6 +19,7 @@ interface CodeArtifactBoxProps {
     code: string;
     previewCode?: string;
     title?: string;
+    initialView?: ArtifactTab;
 }
 
 type ArtifactTab = "code" | "preview";
@@ -29,6 +30,7 @@ const PREVIEW_LANGUAGES = new Set([
     "css",
     "js",
     "javascript",
+    "react",
 ]);
 
 /**
@@ -36,9 +38,15 @@ const PREVIEW_LANGUAGES = new Set([
  * @param props 代码语言、源代码、可选预览代码与标题。
  * @returns 代码产物面板。
  */
-export function CodeArtifactBox({ language, code, previewCode, title }: CodeArtifactBoxProps) {
+export function CodeArtifactBox({
+    language,
+    code,
+    previewCode,
+    title,
+    initialView = "code",
+}: CodeArtifactBoxProps) {
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState<ArtifactTab>("code");
+    const [activeTab, setActiveTab] = useState<ArtifactTab>(initialView);
     const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
     const [isFullscreen, setIsFullscreen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);

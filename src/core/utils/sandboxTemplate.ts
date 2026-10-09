@@ -98,6 +98,49 @@ function addStylesToDocument(markup: string): string {
 export function wrapSandboxHtml(code: string, language: string): string {
     const normalizedLanguage = language.toLowerCase();
 
+    if (normalizedLanguage === "react") {
+        const reactCode = code.replace(/<\/script/gi, "<\\/script");
+        return addStylesToDocument(`
+<div id="preview-root"></div>
+<pre id="preview-error" style="display:none;white-space:pre-wrap;color:#b91c1c"></pre>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.28.5/babel.min.js"></script>
+<script>
+  try {
+    const transformed = Babel.transform(${JSON.stringify(reactCode)}, {
+      presets: [["env", { modules: "commonjs" }], "react"],
+    }).code;
+    const module = { exports: {} };
+    const requireModule = (name) => {
+      if (name === "react") return React;
+      if (name === "react-dom" || name === "react-dom/client") return ReactDOM;
+      throw new Error("Unsupported React preview import: " + name);
+    };
+    const definitions = new Function(
+      "React",
+      "ReactDOM",
+      "module",
+      "exports",
+      "require",
+      transformed + "\\nreturn { App: typeof App !== 'undefined' ? App : undefined };",
+    )(React, ReactDOM, module, module.exports, requireModule);
+    const Component = module.exports.default || module.exports.App || definitions.App || module.exports;
+    if (typeof Component !== "function") {
+      throw new Error("Export a React component named App or as the default export.");
+    }
+    ReactDOM.createRoot(document.getElementById("preview-root")).render(
+      React.createElement(Component),
+    );
+  } catch (error) {
+    const errorMessage = document.getElementById("preview-error");
+    errorMessage.style.display = "block";
+    errorMessage.textContent = error instanceof Error ? error.message : String(error);
+    console.error("React sandbox preview failed:", error);
+  }
+</script>`);
+    }
+
     if (normalizedLanguage === "svg") {
         return `<!doctype html>
 <html>
