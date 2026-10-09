@@ -715,6 +715,7 @@ function App() {
             role="region"
             aria-label={t("chat.conversationMessages")}
             className="chat-messages-scroll h-full overflow-y-auto px-4 pb-8 pt-6 sm:px-6"
+            style={{ scrollbarGutter: "stable" }}
           >
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
               {engineMode === "webgpu" && !isWebLLMReady ? (

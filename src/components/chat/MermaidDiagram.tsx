@@ -25,12 +25,14 @@ let mermaidInitialization: Promise<typeof import("mermaid")> | null = null;
 
 async function loadMermaid() {
     mermaidInitialization ??= import("mermaid").then((module) => {
-        module.default.initialize({
+        const config = {
             startOnLoad: false,
-            securityLevel: "strict",
             suppressErrorRendering: true,
-            theme: "dark",
-        });
+            securityLevel: "loose" as const,
+            theme: "dark" as const,
+        };
+        Object.assign(config, { useMaxWidth: true });
+        module.default.initialize(config);
         return module;
     });
     return mermaidInitialization;
@@ -58,6 +60,7 @@ export const MermaidDiagram = memo(function MermaidDiagram({
 }: MermaidDiagramProps) {
     const { t } = useTranslation();
     const id = useRef(`mermaid-${useId().replace(/:/g, "")}`);
+    const containerRef = useRef<HTMLDivElement>(null);
     const diagramRef = useRef<HTMLDivElement>(null);
     const debouncedSource = useDebouncedValue(source, 300);
     const normalizedSource = normalizeMermaidSource(debouncedSource);
@@ -94,6 +97,7 @@ export const MermaidDiagram = memo(function MermaidDiagram({
 
                 container.innerHTML = renderedSvg;
                 const svgElement = container.querySelector("svg");
+                const outerContainer = containerRef.current;
                 if (svgElement) {
                     const bounds = svgElement.getBoundingClientRect();
                     const viewBox = svgElement.viewBox.baseVal;
@@ -123,7 +127,13 @@ export const MermaidDiagram = memo(function MermaidDiagram({
                     svgElement.style.width = `${width}px`;
                     svgElement.style.height = `${height}px`;
                     svgElement.style.display = "block";
-                    svgElement.style.maxWidth = "none";
+                    svgElement.style.maxWidth = "100%";
+                    if (outerContainer) {
+                        outerContainer.style.minHeight = `${Math.max(
+                            160,
+                            Math.ceil(height + 34),
+                        )}px`;
+                    }
                 }
                 setResult({ source: chartCode });
             } catch {
@@ -149,7 +159,9 @@ export const MermaidDiagram = memo(function MermaidDiagram({
 
     return (
         <div
-            className="w-full overflow-x-auto my-4 min-h-[120px] flex justify-center items-center bg-zinc-900/50 p-4 rounded-xl border border-zinc-800"
+            ref={containerRef}
+            className="w-full overflow-x-auto my-4 p-4 rounded-xl border border-zinc-800 bg-zinc-900/50 min-h-[160px] flex justify-center items-center"
+            style={{ contain: "layout inline-size", maxWidth: "100%" }}
             aria-label={t("chat.mermaidDiagram")}
             aria-busy={!chartCode || result.source !== chartCode}
         >
