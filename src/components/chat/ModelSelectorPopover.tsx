@@ -200,8 +200,15 @@ export function ModelSelectorPopover({
                 }}
                 className="flex max-w-full items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
             >
-                {selectedIsOffline ? (
-                    <span className="h-2 w-2 rounded-full bg-red-500" aria-label={t('header.status.offline')} />
+                {!selectedModel || selectedIsOffline ? (
+                    <span
+                        className="h-2 w-2 rounded-full bg-red-500"
+                        aria-label={
+                            selectedModel
+                                ? t('header.status.offline')
+                                : t('header.selectModel')
+                        }
+                    />
                 ) : selectedEngine === 'ollama' && ollamaStatus.loading ? (
                     <LoaderCircle className="h-3 w-3 animate-spin text-zinc-400" aria-label={t('header.status.loading')} />
                 ) : selectedEngine === 'ollama' ? (
