@@ -149,7 +149,7 @@
     "switchSession": "无法切换会话。",
     "deleteSession": "无法删除会话。",
     "exportSession": "无法导出此会话。",
-    "selectModel": "请先从右上角选择一个可用模型。",
+    "selectModel": "请先从上方选择一个可用模型。",
     "webgpuUnavailable": "WebGPU 引擎初始化后不可用。",
     "unknownModelCommunication": "与模型通信时发生未知错误。",
     "saveSessionSettings": "无法保存会话设置。",
