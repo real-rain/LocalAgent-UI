@@ -61,7 +61,7 @@
 
 ```bash
 # 克隆仓库
-git clone [https://github.com/real-rain/LocalAgent-UI.git](https://github.com/real-rain/LocalAgent-UI.git)
+git clone https://github.com/real-rain/LocalAgent-UI.git
 
 # 安装依赖
 npm install
