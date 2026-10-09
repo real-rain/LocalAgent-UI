@@ -10,17 +10,26 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { normalizeMermaidSource } from "./normalizeMermaidSource";
+import {
+    isMermaidSourceComplete,
+    normalizeMermaidSource,
+} from "./normalizeMermaidSource";
 
 describe("normalizeMermaidSource", () => {
-    it("quotes flowchart labels containing mathematical syntax", () => {
+    it("quotes labels and removes LaTeX syntax from flowchart nodes", () => {
         const source = String.raw`flowchart TD
   A[初始化参数 θ] --> B[计算当前点的梯度 $\nabla J(\theta)$]
   B --> C[更新参数 θ]`;
 
         expect(normalizeMermaidSource(source)).toContain(
-            String.raw`B["计算当前点的梯度 $\nabla J(\theta)$"]`,
+            `B["计算当前点的梯度 nabla J(theta)"]`,
         );
+    });
+
+    it("cleans divider lines and unescaped quotes from node labels", () => {
+        expect(
+            normalizeMermaidSource('flowchart TD\n A[中文 ------------ "说明"]'),
+        ).toBe('flowchart TD\n A["中文 #quot;说明#quot;"]');
     });
 
     it("prefixes numeric flowchart node IDs", () => {
@@ -38,5 +47,18 @@ describe("normalizeMermaidSource", () => {
     it("leaves non-flowchart diagrams unchanged", () => {
         const source = "sequenceDiagram\n A->>B: send";
         expect(normalizeMermaidSource(source)).toBe(source);
+    });
+
+    it("rejects empty and unknown diagram sources", () => {
+        expect(normalizeMermaidSource(" \n ")).toBe("");
+        expect(normalizeMermaidSource("not a diagram")).toBe("");
+    });
+
+    it("detects incomplete streaming flowcharts", () => {
+        expect(isMermaidSourceComplete("flowchart TD\n A[Open")).toBe(false);
+        expect(isMermaidSourceComplete("flowchart TD\n A -->")).toBe(false);
+        expect(isMermaidSourceComplete("flowchart TD\n A[Ready] --> B[Done]")).toBe(
+            true,
+        );
     });
 });

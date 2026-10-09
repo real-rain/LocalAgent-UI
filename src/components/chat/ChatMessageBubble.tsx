@@ -237,7 +237,10 @@ function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockPro
     );
 }
 
-function createMarkdownComponents(previewHtml?: string): Components {
+function createMarkdownComponents(
+    previewHtml?: string,
+    isStreaming = false,
+): Components {
     let previewAssigned = false;
 
     return {
@@ -260,7 +263,12 @@ function createMarkdownComponents(previewHtml?: string): Components {
 
             if (isCodeBlock) {
                 if (language.toLowerCase() === "mermaid") {
-                    return <MermaidDiagram source={codeContent} />;
+                    return (
+                        <MermaidDiagram
+                            source={codeContent}
+                            isStreaming={isStreaming}
+                        />
+                    );
                 }
 
                 const useCombinedPreview =
@@ -331,7 +339,7 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
     const isAssistant = message.role === "assistant";
     const isStreaming = message.status === "streaming";
     const previewHtml = createCombinedHtml(extractMarkdownCodeBlocks(message.content));
-    const markdownComponents = createMarkdownComponents(previewHtml);
+    const markdownComponents = createMarkdownComponents(previewHtml, isStreaming);
 
     if (
         isAssistant &&

@@ -6,28 +6,29 @@
  * @LastEditTime: 2026-10-09 18:26:53
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\components\chat\MermaidDiagram.tsx
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
- * Copyright (c) 2026 by realrain, All Rights Reserved. 
+ * Copyright (c) 2026 by realrain, All Rights Reserved.
  */
 
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { normalizeMermaidSource } from "./normalizeMermaidSource";
+import {
+    isMermaidSourceComplete,
+    normalizeMermaidSource,
+} from "./normalizeMermaidSource";
 
 interface MermaidDiagramProps {
     source: string;
+    isStreaming?: boolean;
 }
 
 let mermaidInitialization: Promise<typeof import("mermaid")> | null = null;
 
-/**
- * 初始化 Mermaid 模块并返回共享实例。
- * @returns 在 Mermaid 模块初始化完成后兑现的 Promise。
- */
 async function loadMermaid() {
     mermaidInitialization ??= import("mermaid").then((module) => {
         module.default.initialize({
             startOnLoad: false,
             securityLevel: "strict",
+            suppressErrorRendering: true,
             theme: "dark",
         });
         return module;
@@ -35,55 +36,72 @@ async function loadMermaid() {
     return mermaidInitialization;
 }
 
+function useDebouncedValue<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => setDebouncedValue(value), delay);
+        return () => window.clearTimeout(timeout);
+    }, [delay, value]);
+
+    return debouncedValue;
+}
+
 /**
- * 渲染 Mermaid 图表，并以无障碍方式呈现加载状态或渲染错误。
- * @param props Mermaid 图表源文本。
- * @returns 已渲染的图表、加载状态或错误信息。
+ * 渲染已完成的 Mermaid 源文本；流式内容等待稳定后再进行解析。
+ * @param props Mermaid 源文本及流式状态。
+ * @returns 已渲染图表或安静的加载占位卡片。
  */
-export function MermaidDiagram({ source }: MermaidDiagramProps) {
+export function MermaidDiagram({
+    source,
+    isStreaming = false,
+}: MermaidDiagramProps) {
     const { t } = useTranslation();
     const id = `mermaid-${useId().replace(/:/g, "")}`;
+    const debouncedSource = useDebouncedValue(source, 300);
+    const normalizedSource = normalizeMermaidSource(debouncedSource);
+    const canRender =
+        source === debouncedSource &&
+        normalizedSource.length > 0 &&
+        (!isStreaming || isMermaidSourceComplete(debouncedSource));
     const [result, setResult] = useState<{
         source: string;
         svg?: string;
-        error?: string;
+        failed?: boolean;
     }>({ source: "" });
-    const svg = result.source === source ? result.svg : undefined;
-    const error = result.source === source ? result.error : undefined;
+    const svg = canRender && result.source === normalizedSource ? result.svg : undefined;
+    const failed =
+        canRender && result.source === normalizedSource && result.failed === true;
 
     useEffect(() => {
+        if (!canRender) return;
+
         let isActive = true;
-        void loadMermaid()
-            .then((module) =>
-                module.default.render(id, normalizeMermaidSource(source)),
-            )
-            .then(({ svg: renderedSvg }) => {
-                if (isActive) setResult({ source, svg: renderedSvg });
-            })
-            .catch((cause: unknown) => {
-                if (isActive) {
-                    setResult({
-                        source,
-                        error:
-                            cause instanceof Error
-                                ? cause.message
-                                : t("chat.mermaidRenderError"),
-                    });
-                }
-            });
+        void (async () => {
+            try {
+                const module = await loadMermaid();
+                const { svg: renderedSvg } = await module.default.render(
+                    id,
+                    normalizedSource,
+                );
+                if (isActive) setResult({ source: normalizedSource, svg: renderedSvg });
+            } catch {
+                if (isActive) setResult({ source: normalizedSource, failed: true });
+            }
+        })();
 
         return () => {
             isActive = false;
         };
-    }, [id, source, t]);
+    }, [canRender, id, normalizedSource]);
 
-    if (error) {
+    if (
+        !isStreaming &&
+        (failed || (source.trim().length > 0 && normalizedSource.length === 0))
+    ) {
         return (
-            <pre
-                className="my-3 overflow-x-auto rounded-lg border border-red-900/70 bg-red-950/30 p-3 text-xs text-red-200"
-                role="alert"
-            >
-                {t("chat.mermaidRenderError")}: {error}
+            <pre className="my-3 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-300">
+                <code className="whitespace-pre">{source}</code>
             </pre>
         );
     }
