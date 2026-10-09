@@ -134,10 +134,11 @@ describe("local database workflows", () => {
         const session = await createSession("Review", "model-a", {
             presetId: preset.id,
         });
-        await db.sessions.put({
+        const legacySession = {
             ...session,
             customSystemPrompt: preset.prompt,
-        });
+        };
+        await db.sessions.put(legacySession);
 
         expect(await getUserPromptPresets()).toEqual([preset]);
         await deleteUserPromptPreset(preset.id);
