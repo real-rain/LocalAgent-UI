@@ -23,6 +23,18 @@ describe("normalizeMermaidSource", () => {
         );
     });
 
+    it("prefixes numeric flowchart node IDs", () => {
+        const source = `graph TD
+  1[开始] --> 2[初始化参数]
+  2 --> 3`;
+
+        expect(normalizeMermaidSource(source)).toBe(
+            `graph TD
+  node_1["开始"] --> node_2["初始化参数"]
+  node_2 --> node_3`,
+        );
+    });
+
     it("leaves non-flowchart diagrams unchanged", () => {
         const source = "sequenceDiagram\n A->>B: send";
         expect(normalizeMermaidSource(source)).toBe(source);
