@@ -98,7 +98,7 @@
     "sendHint": "Enter to send, Shift + Enter for a new line",
     "welcomeTitle": "Welcome to LocalAgent-UI",
     "welcomeDescription": "A lightweight, local-first AI agent workbench running entirely in your browser.",
-    "selectModelPlaceholder": "Select an available model from the top right…",
+    "selectModelPlaceholder": "Select an available model from above…",
     "webgpuLoadingPlaceholder": "Loading the WebGPU model, please wait…",
     "webgpuReadyPlaceholder": "Load the local WebGPU model to get started…",
     "runtimeMonitor": "LocalAgent · Runtime Monitor",

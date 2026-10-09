@@ -98,7 +98,7 @@
     "sendHint": "按 Enter 发送，Shift + Enter 换行",
     "welcomeTitle": "欢迎使用 LocalAgent-UI",
     "welcomeDescription": "轻量、本地优先的 AI Agent 工作台，完全运行在浏览器中。",
-    "selectModelPlaceholder": "请先从右上角选择一个可用模型…",
+    "selectModelPlaceholder": "请先从上方选择一个可用模型…",
     "webgpuLoadingPlaceholder": "WebGPU 模型加载中，请稍候…",
     "webgpuReadyPlaceholder": "请先加载 WebGPU 端侧模型…",
     "runtimeMonitor": "LocalAgent · 运行状态监控",
