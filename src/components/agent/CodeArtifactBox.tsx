@@ -9,7 +9,7 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Maximize2, Minimize2 } from "lucide-react";
+import { Check, Copy, Maximize2, Minimize2, X } from "lucide-react";
 import hljs from "highlight.js/lib/common";
 import { useTranslation } from "react-i18next";
 import { wrapSandboxHtml } from "../../core/utils/sandboxTemplate";
@@ -20,6 +20,7 @@ interface CodeArtifactBoxProps {
     previewCode?: string;
     title?: string;
     initialView?: ArtifactTab;
+    onClose?: () => void;
 }
 
 type ArtifactTab = "code" | "preview";
@@ -44,6 +45,7 @@ export function CodeArtifactBox({
     previewCode,
     title,
     initialView = "code",
+    onClose,
 }: CodeArtifactBoxProps) {
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<ArtifactTab>(initialView);
@@ -181,6 +183,17 @@ export function CodeArtifactBox({
                         )}
                         {copyStatus === "copied" ? t("chat.codeCopied") : t("common.copy")}
                     </button>
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                            aria-label={t("common.close")}
+                            title={t("common.close")}
+                        >
+                            <X className="size-3.5" aria-hidden="true" />
+                        </button>
+                    )}
                 </div>
             </header>
 

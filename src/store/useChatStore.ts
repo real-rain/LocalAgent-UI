@@ -32,6 +32,8 @@ interface ChatState {
   messages: Message[];
   isStreaming: boolean;
   storageError: string | null;
+  activeArtifact: ActiveArtifact | null;
+  setActiveArtifact: (artifact: ActiveArtifact | null) => void;
   loadSessions: () => Promise<void>;
   recoverInterruptedStreams: () => Promise<void>;
   switchSession: (sessionId: string) => Promise<void>;
@@ -60,6 +62,12 @@ interface ChatState {
     inputPrompt: string,
   ) => Promise<void>;
   clearMessages: () => Promise<void>;
+}
+
+export interface ActiveArtifact {
+  code: string;
+  language: string;
+  previewCode?: string;
 }
 
 interface PendingStreamChunks {
@@ -277,6 +285,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isStreaming: false,
   storageError: null,
+  activeArtifact: null,
+  setActiveArtifact: (activeArtifact) => set({ activeArtifact }),
   /** 加载已持久化的会话，并按最近活动时间排序。 */
   loadSessions: async () => {
     const sessions = await getAllSessions();

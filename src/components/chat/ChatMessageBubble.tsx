@@ -15,11 +15,11 @@ import remarkMath from "remark-math";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import hljs from "highlight.js/lib/common";
-import CodeArtifactBox from "../agent/CodeArtifactBox";
 import ThoughtAccordion from "../agent/ThoughtAccordion";
 import ToolCallCard from "../agent/ToolCallCard";
 import { MermaidDiagram } from "./MermaidDiagram";
 import type { Message } from "../../types/chat";
+import { useChatStore } from "../../store/useChatStore";
 import "./ChatMessageBubble.css";
 
 interface ChatMessageBubbleProps {
@@ -128,7 +128,13 @@ function createCombinedHtml(blocks: MarkdownCodeBlock[]): string | undefined {
  * @param previewHtml 由相邻代码块组合而成的可选 HTML 文档。
  * @returns Markdown 代码元素的组件覆盖配置。
  */
-const SANDBOX_LANGUAGES = new Set(["html", "css", "js", "javascript", "react"]);
+const SANDBOX_LANGUAGES = new Set([
+    "html",
+    "css",
+    "js",
+    "javascript",
+    "svg",
+]);
 
 interface MarkdownCodeBlockProps {
     language: string;
@@ -139,7 +145,7 @@ interface MarkdownCodeBlockProps {
 function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockProps) {
     const { t } = useTranslation();
     const [copyStatus, setCopyStatus] = useState<"copied" | "error" | null>(null);
-    const [sandboxOpen, setSandboxOpen] = useState(false);
+    const setActiveArtifact = useChatStore((state) => state.setActiveArtifact);
     const supportsSandbox = SANDBOX_LANGUAGES.has(language.toLowerCase());
     const highlightedCode = useMemo(() => {
         const normalizedLanguage =
@@ -176,7 +182,7 @@ function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockPro
     }
 
     return (
-        <div className="my-3 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 text-left text-sm">
+        <div className="group my-3 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 text-left text-sm">
             <header className="flex min-h-10 items-center gap-3 border-b border-zinc-700 bg-zinc-900 px-3 py-2">
                 <span className="shrink-0 rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs text-zinc-300">
                     {language || "text"}
@@ -185,12 +191,11 @@ function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockPro
                     {supportsSandbox && (
                         <button
                             type="button"
-                            onClick={() => setSandboxOpen((open) => !open)}
-                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                            aria-expanded={sandboxOpen}
+                            onClick={() => setActiveArtifact({ code, language, previewCode })}
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 opacity-100 transition-opacity hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 group-focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                         >
                             <ExternalLink className="size-3.5" aria-hidden="true" />
-                            {sandboxOpen ? t("chat.closeSandbox") : t("chat.openInSandbox")}
+                            {t("chat.openInSandbox")}
                         </button>
                     )}
                     <button
@@ -228,14 +233,6 @@ function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockPro
                     dangerouslySetInnerHTML={{ __html: highlightedCode }}
                 />
             </pre>
-            {sandboxOpen && supportsSandbox && (
-                <CodeArtifactBox
-                    language={language}
-                    code={code}
-                    previewCode={previewCode}
-                    initialView="preview"
-                />
-            )}
         </div>
     );
 }

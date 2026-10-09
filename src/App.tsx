@@ -29,6 +29,7 @@ import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
 import { PromptPresetSelector } from "./components/chat/PromptPresetSelector";
 import { WebGPULoaderCard } from "./components/chat/WebGPULoaderCard";
 import AppSidebar from "./components/layout/AppSidebar";
+import CodeArtifactBox from "./components/agent/CodeArtifactBox";
 import { OllamaProvider } from "./core/providers/OllamaProvider";
 import type { ChatProvider } from "./core/providers/ChatProvider";
 import {
@@ -98,6 +99,8 @@ function App() {
   );
   const reloadSessions = useChatStore((state) => state.loadSessions);
   const storageError = useChatStore((state) => state.storageError);
+  const activeArtifact = useChatStore((state) => state.activeArtifact);
+  const setActiveArtifact = useChatStore((state) => state.setActiveArtifact);
 
   const [engineMode, setEngineMode] = useState<Engine>("ollama");
   const [modelName, setModelName] = useState("");
@@ -864,6 +867,21 @@ function App() {
           </p>
         </footer>
       </section>
+      {activeArtifact && (
+        <aside
+          aria-label={t("chat.artifactView")}
+          className="fixed bottom-4 right-4 z-40 max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100vw-2rem))] overflow-auto rounded-lg shadow-2xl"
+        >
+          <CodeArtifactBox
+            language={activeArtifact.language}
+            code={activeArtifact.code}
+            previewCode={activeArtifact.previewCode}
+            title={t("chat.previewTitle", { title: activeArtifact.language })}
+            initialView="preview"
+            onClose={() => setActiveArtifact(null)}
+          />
+        </aside>
+      )}
     </main>
   );
 }
