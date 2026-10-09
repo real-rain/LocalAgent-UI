@@ -1,9 +1,9 @@
 /*
- * @Description: 组合本地聊天应用界面、会话控制与模型运行流程。
+ * @Description: 组合本地聊天应用界面与模型运行流程。
  * @Author: realrain☔ 1936648485@qq.com
  * @Date: 2026-10-07 21:30:13
  * @LastEditors: realrain☔ 1936648485@qq.com
- * @LastEditTime: 2026-10-09 18:35:59
+ * @LastEditTime: 2026-10-09 18:59:06
  * @FilePath: \LocalAgent-UI\LocalAgent-UI\src\App.tsx
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
@@ -15,27 +15,20 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type MouseEvent,
 } from "react";
 import {
   ArrowDown,
   ArrowUpRight,
-  Mail,
-  Plus,
   Send,
   Sidebar,
-  Trash2,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import githubIcon from "./assets/GitHub.svg";
 import logo from "./assets/logo.svg";
-import telegramIcon from "./assets/telegram.svg";
-import twitterIcon from "./assets/tuite-copy.svg";
 import ChatMessageBubble from "./components/chat/ChatMessageBubble";
 import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
 import { PromptPresetSelector } from "./components/chat/PromptPresetSelector";
 import { WebGPULoaderCard } from "./components/chat/WebGPULoaderCard";
+import AppSidebar from "./components/layout/AppSidebar";
 import { OllamaProvider } from "./core/providers/OllamaProvider";
 import type { ChatProvider } from "./core/providers/ChatProvider";
 import {
@@ -46,6 +39,7 @@ import {
 } from "./core/providers/presets";
 import {
   deleteUserPromptPreset,
+  getMessagesBySession,
   getUserPromptPresets,
   saveUserPromptPreset,
 } from "./db/indexedDB";
@@ -111,6 +105,7 @@ function App() {
     useState<PromptPresetId>("code-assistant");
   const [userPromptPresets, setUserPromptPresets] = useState<PromptPreset[]>([]);
   const [input, setInput] = useState("");
+  const [sessionSearch, setSessionSearch] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -367,11 +362,11 @@ function App() {
     }
   }
 
-  async function handleDeleteSession(
-    event: MouseEvent<HTMLButtonElement>,
-    sessionId: string,
-  ) {
-    event.stopPropagation();
+  async function handleDeleteSession(sessionId: string) {
+    const session = sessions.find((item) => item.id === sessionId);
+    const title = session?.title || t("sidebar.newSession");
+    if (!window.confirm(t("sidebar.confirmDelete", { title }))) return;
+
     if (sessionId === currentSessionId) await stopActiveStream();
     setRequestError(null);
 
@@ -382,6 +377,88 @@ function App() {
     } catch (cause) {
       setRequestError(
         cause instanceof Error ? cause.message : t("errors.deleteSession"),
+      );
+    }
+  }
+
+  async function handleExportSession(
+    sessionId: string,
+    format: "md" | "json",
+  ) {
+    try {
+      const session = sessions.find((item) => item.id === sessionId);
+      if (!session) throw new Error(t("errors.exportSession"));
+
+      const sessionMessages = await getMessagesBySession(sessionId);
+      const content =
+        format === "json"
+          ? JSON.stringify(
+            {
+              session,
+              messages: sessionMessages,
+            },
+            null,
+            2,
+          )
+          : [
+            `# ${session.title || t("sidebar.newSession")}`,
+            "",
+            ...sessionMessages.flatMap((message) => {
+              const sections = [
+                `## ${message.role === "user" ? t("chat.you") : t("chat.assistant")}`,
+                "",
+                message.content,
+              ];
+
+              if (message.thoughtProcess) {
+                sections.push(
+                  "",
+                  `### ${t("chat.thoughtProcess")}`,
+                  "",
+                  message.thoughtProcess,
+                );
+              }
+
+              if (message.toolCalls?.length) {
+                sections.push(
+                  "",
+                  `### ${t("chat.toolCalls")}`,
+                  "",
+                  "```json",
+                  JSON.stringify(message.toolCalls, null, 2),
+                  "```",
+                );
+              }
+
+              return [...sections, ""];
+            }),
+          ].join("\n");
+
+      const blob = new Blob([content], {
+        type: format === "json" ? "application/json" : "text/markdown",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const safeTitle = Array.from(session.title || t("sidebar.newSession"))
+        .map((character) => {
+          const codePoint = character.codePointAt(0) ?? 0;
+          return /[<>:"/\\|?*]/.test(character) ||
+            codePoint < 32 ||
+            codePoint === 127
+            ? "_"
+            : character;
+        })
+        .join("")
+        .replace(/[. ]+$/g, "");
+      anchor.href = url;
+      anchor.download = `${safeTitle || "conversation"}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (cause) {
+      setRequestError(
+        cause instanceof Error ? cause.message : t("errors.exportSession"),
       );
     }
   }
@@ -528,189 +605,24 @@ function App() {
   const currentSession = sessions.find(
     (session) => session.id === currentSessionId,
   );
-
   return (
     <main className="flex h-[100dvh] min-h-[560px] overflow-hidden bg-zinc-950 text-zinc-100">
       {isSidebarOpen && (
-        <aside className="flex w-72 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950/95">
-          <div className="flex h-16 items-center justify-between border-b border-zinc-800 px-4">
-            <div className="flex items-center gap-2.5">
-              <img
-                src={logo}
-                alt={t("common.logoAlt")}
-                className="w-6 h-6 rounded-md shadow-sm"
-              />
-              <span className="bg-gradient-to-r from-indigo-300 via-blue-300 to-cyan-300 bg-clip-text text-sm font-semibold tracking-tight text-transparent">
-                LocalAgent-UI
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3">
-            <button
-              type="button"
-              onClick={handleNewChat}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              {t("sidebar.newChat")}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between px-4 pb-2 pt-3">
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-              {t("sidebar.recentSessions")}
-            </h2>
-            <span className="text-[11px] tabular-nums text-zinc-600">
-              {sessions.length}
-            </span>
-          </div>
-
-          <nav
-            aria-label={t("sidebar.recentSessions")}
-            className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-3"
-          >
-            {isLoadingSessions ? (
-              <p className="px-3 py-4 text-xs text-zinc-500">
-                {t("sidebar.loadingSessions")}
-              </p>
-            ) : sessions.length === 0 ? (
-              <p className="px-3 py-4 text-xs leading-5 text-zinc-500">
-                {t("sidebar.emptySessions")}
-              </p>
-            ) : (
-              sessions.map((session) => {
-                const isCurrent = session.id === currentSessionId;
-                return (
-                  <div
-                    key={session.id}
-                    className={`group flex items-center gap-1 rounded-lg border px-2 py-1.5 transition ${isCurrent
-                      ? "border-zinc-800 bg-zinc-900"
-                      : "border-transparent hover:bg-zinc-900/70"
-                      }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => void handleSwitchSession(session.id)}
-                      aria-current={isCurrent ? "page" : undefined}
-                      className="min-w-0 flex-1 px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-                    >
-                      <motion.span
-                        key={session.title}
-                        title={session.title}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                        className={`block truncate text-[13px] ${isCurrent
-                          ? "max-w-[180px] text-zinc-100"
-                          : "max-w-[180px] text-zinc-400"
-                          }`}
-                      >
-                        {session.title || t("sidebar.newSession")}
-                      </motion.span>
-                      <span className="mt-1 block text-[10px] text-zinc-600">
-                        {new Date(session.updatedAt).toLocaleDateString(
-                          i18n.resolvedLanguage ?? i18n.language,
-                        )}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`${t("sidebar.delete")} ${session.title || t("sidebar.newSession")}`}
-                      title={t("sidebar.delete")}
-                      onClick={(event) =>
-                        void handleDeleteSession(event, session.id)
-                      }
-                      className="grid size-8 shrink-0 place-items-center rounded-md text-zinc-600 opacity-0 transition hover:bg-red-400/10 hover:text-red-300 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 group-hover:opacity-100"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </nav>
-
-          <div className="border-t border-zinc-800 px-4 py-3">
-            <p className="text-[11px] text-zinc-600">
-              {t("sidebar.localStorageNote")}
-            </p>
-          </div>
-
-          <footer className="relative border-t border-zinc-800/80 bg-zinc-950/50 p-3">
-            {copyToast && (
-              <p
-                role="status"
-                aria-live="polite"
-                className="absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded border border-zinc-800 bg-zinc-900/90 px-2 py-1 text-xs text-zinc-200 shadow-lg backdrop-blur"
-              >
-                {copyToast}
-              </p>
-            )}
-            <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-              <span
-                aria-label={t("common.liveStatus")}
-                className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]"
-              />
-              <span>{t("footer.createdBy")}</span>
-            </div>
-            <div className="mt-2 flex items-center gap-1">
-              <a
-                href="https://github.com/real-rain"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="GitHub: real-rain"
-                title="GitHub: real-rain"
-                className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-              >
-                <img
-                  src={githubIcon}
-                  alt=""
-                  className="size-4 brightness-0 invert opacity-60 transition-opacity group-hover:opacity-100"
-                />
-              </a>
-              <a
-                href="https://x.com/realrain___"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="X: realrain___"
-                title="X: realrain___"
-                className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-              >
-                <img
-                  src={twitterIcon}
-                  alt=""
-                  className="size-4 brightness-0 invert opacity-60 transition-opacity group-hover:opacity-100"
-                />
-              </a>
-              <a
-                href="https://t.me/real_rain"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Telegram: real_rain"
-                title="Telegram: real_rain"
-                className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-              >
-                <img
-                  src={telegramIcon}
-                  alt=""
-                  className="size-4 transition-opacity group-hover:opacity-80"
-                />
-              </a>
-              <button
-                type="button"
-                aria-label={t("footer.copyContact", { email: CONTACT_EMAIL })}
-                onClick={() => void handleCopyContact()}
-                className="group relative grid size-8 cursor-pointer place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-              >
-                <Mail className="size-4" aria-hidden="true" />
-                <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded border border-zinc-800 bg-zinc-900/90 px-2 py-1 text-xs text-zinc-200 shadow-lg backdrop-blur group-hover:block group-focus-visible:block">
-                  {t("footer.copyContact", { email: CONTACT_EMAIL })}
-                </span>
-              </button>
-            </div>
-          </footer>
-        </aside>
+        <AppSidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          isLoadingSessions={isLoadingSessions}
+          searchQuery={sessionSearch}
+          copyToast={copyToast}
+          onSearchChange={setSessionSearch}
+          onNewChat={() => void handleNewChat()}
+          onSwitchSession={(sessionId) => void handleSwitchSession(sessionId)}
+          onExportSession={(sessionId, format) =>
+            void handleExportSession(sessionId, format)
+          }
+          onDeleteSession={(sessionId) => void handleDeleteSession(sessionId)}
+          onCopyContact={() => void handleCopyContact()}
+        />
       )}
 
       <section className="flex min-w-0 flex-1 flex-col">
