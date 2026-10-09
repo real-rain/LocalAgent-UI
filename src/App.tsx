@@ -29,8 +29,15 @@ import { OllamaProvider } from "./core/providers/OllamaProvider";
 import type { ChatProvider } from "./core/providers/ChatProvider";
 import {
   getPresetPrompt,
+  PROMPT_PRESETS,
+  type PromptPreset,
   type PromptPresetId,
 } from "./core/providers/presets";
+import {
+  deleteUserPromptPreset,
+  getUserPromptPresets,
+  saveUserPromptPreset,
+} from "./db/indexedDB";
 import { useAutoScroll } from "./hooks/useAutoScroll";
 import { useChatStore } from "./store/useChatStore";
 import type { Message } from "./types/chat";
@@ -62,7 +69,6 @@ function App() {
   const sessions = useChatStore((state) => state.sessions);
   const currentSessionId = useChatStore((state) => state.currentSessionId);
   const messages = useChatStore((state) => state.messages);
-  const loadSessions = useChatStore((state) => state.loadSessions);
   const switchSession = useChatStore((state) => state.switchSession);
   const createNewSession = useChatStore((state) => state.createNewSession);
   const deleteSession = useChatStore((state) => state.deleteSession);
@@ -78,12 +84,17 @@ function App() {
   const appendStreamChunk = useChatStore((state) => state.appendStreamChunk);
   const setStreamingComplete = useChatStore((state) => state.setStreamingComplete);
   const setStreamingFailed = useChatStore((state) => state.setStreamingFailed);
+  const recoverInterruptedStreams = useChatStore(
+    (state) => state.recoverInterruptedStreams,
+  );
+  const reloadSessions = useChatStore((state) => state.loadSessions);
+  const storageError = useChatStore((state) => state.storageError);
 
   const [engineMode, setEngineMode] = useState<Engine>("ollama");
   const [modelName, setModelName] = useState("");
   const [promptPresetId, setPromptPresetId] =
     useState<PromptPresetId>("code-assistant");
-  const [customSystemPrompt, setCustomSystemPrompt] = useState("");
+  const [userPromptPresets, setUserPromptPresets] = useState<PromptPreset[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
@@ -194,15 +205,20 @@ function App() {
 
     setEngineMode(session.engine ?? "ollama");
     setModelName(session.model);
-    setPromptPresetId(session.presetId ?? "code-assistant");
-    setCustomSystemPrompt(session.customSystemPrompt ?? "");
+    setPromptPresetId(
+      session.presetId === "custom-agent"
+        ? "code-assistant"
+        : session.presetId ?? "code-assistant",
+    );
     setEngineError(null);
   }
 
   function handlePresetChange(presetId: PromptPresetId) {
     setPromptPresetId(presetId);
     if (currentSessionId) {
-      void updateSessionSettings(currentSessionId, { presetId }).catch(
+      void updateSessionSettings(currentSessionId, {
+        presetId,
+      }).catch(
         (cause: unknown) => {
           setRequestError(
             cause instanceof Error
@@ -214,17 +230,23 @@ function App() {
     }
   }
 
-  function handleCustomPromptChange(prompt: string) {
-    setCustomSystemPrompt(prompt);
-    if (currentSessionId) {
-      void updateSessionSettings(currentSessionId, {
-        customSystemPrompt: prompt,
-      }).catch((cause: unknown) => {
-        setRequestError(
-          cause instanceof Error ? cause.message : t("errors.saveSessionSettings"),
-        );
-      });
-    }
+  async function handleSavePromptPreset(
+    name: string,
+    prompt: string,
+    id?: string,
+  ): Promise<PromptPreset> {
+    const preset = await saveUserPromptPreset(name, prompt, id);
+    setUserPromptPresets((current) => [
+      ...current.filter((item) => item.id !== preset.id),
+      preset,
+    ]);
+    return preset;
+  }
+
+  async function handleDeletePromptPreset(id: string) {
+    await deleteUserPromptPreset(id);
+    setUserPromptPresets((current) => current.filter((item) => item.id !== id));
+    await reloadSessions();
   }
 
   useEffect(() => {
@@ -250,7 +272,10 @@ function App() {
     let isActive = true;
     void (async () => {
       try {
-        await loadSessions();
+        const savedPresets = await getUserPromptPresets();
+        if (!isActive) return;
+        setUserPromptPresets(savedPresets);
+        await recoverInterruptedStreams();
         if (!isActive) return;
 
         const [latestSession] = useChatStore.getState().sessions;
@@ -272,7 +297,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [loadSessions, switchSession, t]);
+  }, [recoverInterruptedStreams, switchSession, t]);
 
   async function stopActiveStream() {
     if (!abortControllerRef.current && !isStreaming) return;
@@ -299,7 +324,6 @@ function App() {
       const session = await createNewSession(modelName, {
         engine: engineMode,
         presetId: promptPresetId,
-        customSystemPrompt,
       });
       applySessionSettings(session.id);
       setInput("");
@@ -384,7 +408,6 @@ function App() {
           await createNewSession(modelName, {
             engine: engineMode,
             presetId: promptPresetId,
-            customSystemPrompt,
           })
         ).id;
       if (
@@ -436,10 +459,10 @@ function App() {
         provider = new OllamaProvider();
       }
 
-      const systemPrompt =
-        promptPresetId === "custom-agent"
-          ? customSystemPrompt.trim()
-          : getPresetPrompt(promptPresetId);
+      const systemPrompt = getPresetPrompt(
+        promptPresetId,
+        [...PROMPT_PRESETS, ...userPromptPresets],
+      );
       for await (const chunk of provider.chatStream(
         modelName,
         conversation,
@@ -726,10 +749,11 @@ function App() {
               />
               <PromptPresetSelector
                 presetId={promptPresetId}
-                customPrompt={customSystemPrompt}
+                presets={userPromptPresets}
                 disabled={isStreaming}
                 onPresetChange={handlePresetChange}
-                onCustomPromptChange={handleCustomPromptChange}
+                onSavePreset={handleSavePromptPreset}
+                onDeletePreset={handleDeletePromptPreset}
               />
             </div>
           </fieldset>
@@ -819,6 +843,17 @@ function App() {
                 className="rounded-lg border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-300"
               >
                 {requestError}
+              </div>
+            )}
+            {storageError && (
+              <div
+                role="alert"
+                className="rounded-lg border border-amber-900/70 bg-amber-950/30 px-4 py-3 text-sm text-amber-200"
+              >
+                {t("errors.persistStream", {
+                  detail: storageError,
+                  defaultValue: `Unable to save this response locally: ${storageError}`,
+                })}
               </div>
             )}
           </div>

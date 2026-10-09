@@ -11,6 +11,7 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
+import { useTranslation } from "react-i18next";
 import CodeArtifactBox from "../agent/CodeArtifactBox";
 import ThoughtAccordion from "../agent/ThoughtAccordion";
 import ToolCallCard from "../agent/ToolCallCard";
@@ -150,6 +151,7 @@ function createMarkdownComponents(previewHtml?: string): Components {
 }
 
 export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
+    const { t } = useTranslation();
     const isAssistant = message.role === "assistant";
     const isStreaming = message.status === "streaming";
     const previewHtml = createCombinedHtml(extractMarkdownCodeBlocks(message.content));
@@ -186,6 +188,15 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
                             />
                         ))}
                     </div>
+                )}
+
+                {isAssistant && message.status === "interrupted" && (
+                    <p
+                        className="mb-3 rounded-md border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200"
+                        role="status"
+                    >
+                        {t("chat.interruptedResponse")}
+                    </p>
                 )}
 
                 <div className="chat-message__content">

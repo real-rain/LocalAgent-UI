@@ -6,6 +6,7 @@ import {
   db,
   getAllSessions,
   getMessagesBySession,
+  recoverInterruptedMessages,
   saveMessage,
   updateSessionSettings as updateSessionSettingsRecord,
   type Session,
@@ -19,7 +20,9 @@ interface ChatState {
   currentSessionId: string | null;
   messages: Message[];
   isStreaming: boolean;
+  storageError: string | null;
   loadSessions: () => Promise<void>;
+  recoverInterruptedStreams: () => Promise<void>;
   switchSession: (sessionId: string) => Promise<void>;
   createNewSession: (
     model?: string,
@@ -51,8 +54,63 @@ interface PendingStreamChunks {
 const pendingStreamChunks = new Map<string, PendingStreamChunks>();
 let streamFlushHandle: number | null = null;
 let streamFlushUsesTimeout = false;
+let streamPersistHandle: number | null = null;
+let streamPersistQueue: Promise<void> = Promise.resolve();
 let activeAbortController: AbortController | null = null;
 let activeStreamId: string | null = null;
+
+function sortSessions(sessions: Session[]): Session[] {
+  return sessions.sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+function updateSessionActivity(sessionId: string, updatedAt: number): void {
+  useChatStore.setState((state) => ({
+    sessions: sortSessions(
+      state.sessions.map((session) =>
+        session.id === sessionId ? { ...session, updatedAt } : session,
+      ),
+    ),
+  }));
+}
+
+function clearStreamPersistTimer(): void {
+  if (streamPersistHandle === null) return;
+  window.clearTimeout(streamPersistHandle);
+  streamPersistHandle = null;
+}
+
+function persistMessageSnapshot(messageId: string): Promise<void> {
+  const message = useChatStore
+    .getState()
+    .messages.find((item) => item.id === messageId);
+  if (!message) return Promise.resolve();
+
+  streamPersistQueue = streamPersistQueue
+    .then(async () => {
+      const updatedAt = await saveMessage(message);
+      updateSessionActivity(message.sessionId, updatedAt);
+      useChatStore.setState({ storageError: null });
+    })
+    .catch((cause: unknown) => {
+      useChatStore.setState({
+        storageError:
+          cause instanceof Error
+            ? cause.message
+            : "Unable to persist the streaming response.",
+      });
+    });
+  return streamPersistQueue;
+}
+
+function scheduleStreamPersist(messageId: string): void {
+  if (streamPersistHandle !== null) return;
+  streamPersistHandle = window.setTimeout(() => {
+    streamPersistHandle = null;
+    if (activeStreamId === messageId) {
+      void persistMessageSnapshot(messageId);
+    }
+  }, 500);
+}
 
 function clearPendingStreamChunks(): void {
   pendingStreamChunks.clear();
@@ -81,6 +139,7 @@ function flushPendingStreamChunks(): void {
   const chunks = new Map(pendingStreamChunks);
   pendingStreamChunks.clear();
 
+  let updatedMessages: Message[] = [];
   useChatStore.setState((state) => {
     let hasUpdates = false;
     const messages = state.messages.map((message) => {
@@ -104,8 +163,16 @@ function flushPendingStreamChunks(): void {
       };
     });
 
+    if (hasUpdates) updatedMessages = messages;
     return hasUpdates ? { messages } : state;
   });
+
+  const activeMessage = updatedMessages.find(
+    (message) => message.id === activeStreamId,
+  );
+  if (activeMessage?.status === "streaming") {
+    scheduleStreamPersist(activeMessage.id);
+  }
 }
 
 function scheduleStreamFlush(): void {
@@ -132,11 +199,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   currentSessionId: null,
   messages: [],
   isStreaming: false,
+  storageError: null,
   loadSessions: async () => {
     const sessions = await getAllSessions();
-    set({
-      sessions: sessions.sort((left, right) => right.updatedAt - left.updatedAt),
-    });
+    set({ sessions: sortSessions(sessions) });
+  },
+  recoverInterruptedStreams: async () => {
+    await recoverInterruptedMessages();
+    await get().loadSessions();
   },
   switchSession: async (sessionId) => {
     await get().stopGeneration();
@@ -160,12 +230,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return session;
   },
   updateSessionSettings: async (sessionId, settings) => {
-    await updateSessionSettingsRecord(sessionId, settings);
+    const updatedAt = await updateSessionSettingsRecord(sessionId, settings);
     set((state) => ({
-      sessions: state.sessions.map((session) =>
-        session.id === sessionId
-          ? { ...session, ...settings, updatedAt: Date.now() }
-          : session,
+      sessions: sortSessions(
+        state.sessions.map((session) =>
+          session.id === sessionId
+            ? { ...session, ...settings, updatedAt }
+            : session,
+        ),
       ),
     }));
   },
@@ -187,7 +259,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   addMessage: async (message) => {
     set((state) => ({ messages: [...state.messages, message] }));
-    await saveMessage(message);
+    const updatedAt = await saveMessage(message);
+    updateSessionActivity(message.sessionId, updatedAt);
   },
   updateTitleFromFirstMessage: async (sessionId, inputPrompt) => {
     const state = get();
@@ -201,12 +274,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .replace(/\s+/g, " ")
         .slice(0, 24)
         .trimEnd() || "New Chat";
-    await db.sessions.update(sessionId, { title: dynamicTitle });
+    const updatedAt = Date.now();
+    await db.sessions.update(sessionId, {
+      title: dynamicTitle,
+      updatedAt,
+    });
     set((currentState) => ({
-      sessions: currentState.sessions.map((session) =>
-        session.id === sessionId
-          ? { ...session, title: dynamicTitle }
-          : session,
+      sessions: sortSessions(
+        currentState.sessions.map((session) =>
+          session.id === sessionId
+            ? { ...session, title: dynamicTitle, updatedAt }
+            : session,
+        ),
       ),
     }));
   },
@@ -217,9 +296,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   stopGeneration: async () => {
     const streamId = activeStreamId;
+    flushPendingStreamChunks();
     activeAbortController?.abort();
     activeAbortController = null;
     activeStreamId = null;
+    clearStreamPersistTimer();
     clearPendingStreamChunks();
 
     const failedMessage = streamId
@@ -235,7 +316,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           message.id === stoppedMessage.id ? stoppedMessage : message,
         ),
       }));
-      await saveMessage(stoppedMessage);
+      await streamPersistQueue;
+      const updatedAt = await saveMessage(stoppedMessage);
+      updateSessionActivity(stoppedMessage.sessionId, updatedAt);
       return;
     }
 
@@ -284,7 +367,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
     activeAbortController = null;
     activeStreamId = null;
-    await saveMessage(completedMessage);
+    clearStreamPersistTimer();
+    await streamPersistQueue;
+    const updatedAt = await saveMessage(completedMessage);
+    updateSessionActivity(completedMessage.sessionId, updatedAt);
   },
   setStreamingFailed: async (id) => {
     if (id && activeStreamId !== id) return;
@@ -314,9 +400,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
     activeAbortController = null;
     activeStreamId = null;
-    await saveMessage(failedMessage);
+    clearStreamPersistTimer();
+    await streamPersistQueue;
+    const updatedAt = await saveMessage(failedMessage);
+    updateSessionActivity(failedMessage.sessionId, updatedAt);
   },
   clearMessages: async () => {
+    activeAbortController?.abort();
+    activeAbortController = null;
+    activeStreamId = null;
+    clearStreamPersistTimer();
     clearPendingStreamChunks();
     const { currentSessionId } = get();
     if (currentSessionId) {
@@ -325,10 +418,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => ({
       messages: [],
       isStreaming: false,
-      sessions: state.sessions.map((session) =>
-        session.id === currentSessionId
-          ? { ...session, title: "New Chat" }
-          : session,
+      sessions: sortSessions(
+        state.sessions.map((session) =>
+          session.id === currentSessionId
+            ? { ...session, title: "New Chat", updatedAt: Date.now() }
+            : session,
+        ),
       ),
     }));
   },

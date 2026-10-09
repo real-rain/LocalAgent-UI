@@ -109,16 +109,27 @@
     "agentDeepThinking": "Agent 深度思考",
     "mermaidDiagram": "Mermaid 流程图",
     "renderingDiagram": "正在渲染流程图…",
-    "mermaidRenderError": "无法渲染 Mermaid 流程图"
+    "mermaidRenderError": "无法渲染 Mermaid 流程图",
+    "interruptedResponse": "此回复因页面关闭或刷新而中断；已保留已生成的部分内容。"
   },
   "prompts": {
     "label": "系统提示词预设",
-    "customPrompt": "自定义系统提示词",
-    "customPlaceholder": "输入系统提示词",
+    "manage": "管理预设",
+    "create": "新建预设",
+    "newPreset": "新预设",
+    "editing": "编辑：{{name}}",
+    "name": "预设名称",
+    "instructions": "系统提示词",
+    "save": "保存预设",
+    "saveFailed": "无法保存预设。",
+    "deleteFailed": "无法删除预设。",
+    "confirmDelete": "确定删除“{{name}}”？使用该预设的会话将切换到代码助手预设。",
+    "editPreset": "编辑 {{name}}",
+    "deletePreset": "删除 {{name}}",
+    "noCustomPresets": "还没有自定义预设。",
     "presets": {
       "codeAssistant": "代码助手",
-      "translator": "翻译",
-      "customAgent": "自定义 Agent"
+      "translator": "翻译"
     }
   },
   "errors": {
@@ -130,7 +141,8 @@
     "selectModel": "请先从右上角选择一个可用模型。",
     "webgpuUnavailable": "WebGPU 引擎初始化后不可用。",
     "unknownModelCommunication": "与模型通信时发生未知错误。",
-    "saveSessionSettings": "无法保存会话设置。"
+    "saveSessionSettings": "无法保存会话设置。",
+    "persistStream": "无法将回复保存到本地：{{detail}}"
   },
   "modelSelector": {
     "localEndpoints": "本地服务",

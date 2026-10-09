@@ -109,16 +109,27 @@
     "agentDeepThinking": "Agent deep thinking",
     "mermaidDiagram": "Mermaid diagram",
     "renderingDiagram": "Rendering diagram…",
-    "mermaidRenderError": "Unable to render Mermaid diagram"
+    "mermaidRenderError": "Unable to render Mermaid diagram",
+    "interruptedResponse": "This response was interrupted by a page reload or close. The generated portion has been saved."
   },
   "prompts": {
     "label": "System prompt preset",
-    "customPrompt": "Custom system prompt",
-    "customPlaceholder": "Enter a system prompt",
+    "manage": "Manage presets",
+    "create": "Create preset",
+    "newPreset": "New preset",
+    "editing": "Editing: {{name}}",
+    "name": "Preset name",
+    "instructions": "System prompt",
+    "save": "Save preset",
+    "saveFailed": "Unable to save the preset.",
+    "deleteFailed": "Unable to delete the preset.",
+    "confirmDelete": "Delete “{{name}}”? Sessions using it will switch to the Code Assistant preset.",
+    "editPreset": "Edit {{name}}",
+    "deletePreset": "Delete {{name}}",
+    "noCustomPresets": "No custom presets yet.",
     "presets": {
       "codeAssistant": "Code Assistant",
-      "translator": "Translator",
-      "customAgent": "Custom Agent"
+      "translator": "Translator"
     }
   },
   "errors": {
@@ -130,7 +141,8 @@
     "selectModel": "Select an available model from the top right first.",
     "webgpuUnavailable": "The WebGPU engine is unavailable after initialization.",
     "unknownModelCommunication": "An unknown error occurred while communicating with the model.",
-    "saveSessionSettings": "Unable to save session settings."
+    "saveSessionSettings": "Unable to save session settings.",
+    "persistStream": "Unable to save this response locally: {{detail}}"
   },
   "modelSelector": {
     "localEndpoints": "LOCAL ENDPOINTS",

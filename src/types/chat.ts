@@ -1,6 +1,11 @@
 export type ToolCallStatus = "pending" | "running" | "success" | "failed";
 
-export type MessageStatus = "streaming" | "complete" | "failed" | "error";
+export type MessageStatus =
+  | "streaming"
+  | "complete"
+  | "failed"
+  | "error"
+  | "interrupted";
 
 export interface Message {
   id: string;

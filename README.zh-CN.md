@@ -39,9 +39,9 @@
 * **🔌 混合式模型提供方架构**：
   * **浏览器内 WebGPU**：通过 WebWorker 中的 `@mlc-ai/web-llm` 运行完全本地、无需后端的 LLM。
   * **Ollama REST API**：连接本地 Ollama 接口，支持动态健康检查和已下载模型的自动发现。
-* **🎭 角色预设与会话配置**：内置代码助手、翻译和自定义 Agent 提示词；模型、引擎及提示词选择均按会话保存在 IndexedDB。
+* **🎭 角色预设与会话配置**：内置代码助手、翻译和自定义 Agent 提示词；支持创建、编辑、删除并跨会话复用自定义预设。模型、引擎及提示词选择均按会话保存在 IndexedDB。
 * **📝 高清 Markdown**：代码语法高亮、KaTeX 数学公式和 Mermaid 流程图均在浏览器本地渲染。
-* **🔒 100% 本地优先的数据隐私**：会话、模型配置、系统提示词和完整聊天记录均通过 Dexie.js 保存在浏览器的 IndexedDB 中。
+* **🔒 100% 本地优先的数据隐私**：会话、模型配置、系统提示词和完整聊天记录均通过 Dexie.js 保存在浏览器的 IndexedDB 中；流式回复定期落盘，刷新后可恢复已生成内容。
 * **💨 流畅的流式处理管线**：通过 Zustand 状态缓冲和 RAF 节流的智能自动滚动，处理高频 Token 流的同时避免界面卡顿。
 
 ---
@@ -53,6 +53,7 @@
 * **状态管理与数据库**：Zustand + Dexie.js（IndexedDB）
 * **推理引擎**：`@mlc-ai/web-llm`（WebGPU）和 Ollama REST 接口
 * **Markdown 与语法高亮**：React-Markdown、highlight.js、KaTeX 和 Mermaid
+* **测试**：Vitest + fake-indexeddb（运行 `npm test`）
 
 ---
 
