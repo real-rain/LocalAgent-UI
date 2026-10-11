@@ -15,9 +15,11 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { useRef } from "react";
 import githubIcon from "../../assets/GitHub.svg";
 import logo from "../../assets/logo.svg";
 import telegramIcon from "../../assets/telegram.svg";
@@ -32,8 +34,11 @@ interface AppSidebarProps {
   isLoadingSessions: boolean;
   searchQuery: string;
   copyToast: string | null;
+  isImportingBackup: boolean;
   onSearchChange: (query: string) => void;
   onNewChat: () => void;
+  onExportBackup: () => void;
+  onImportBackup: (file: File) => void;
   onSwitchSession: (sessionId: string) => void;
   onExportSession: (sessionId: string, format: ExportFormat) => void;
   onDeleteSession: (sessionId: string) => void;
@@ -48,14 +53,18 @@ export default function AppSidebar({
   isLoadingSessions,
   searchQuery,
   copyToast,
+  isImportingBackup,
   onSearchChange,
   onNewChat,
+  onExportBackup,
+  onImportBackup,
   onSwitchSession,
   onExportSession,
   onDeleteSession,
   onCopyContact,
 }: AppSidebarProps) {
   const { t, i18n } = useTranslation();
+  const backupInputRef = useRef<HTMLInputElement>(null);
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
   const filteredSessions = sessions.filter((session) =>
     session.title.toLocaleLowerCase().includes(normalizedSearch),
@@ -85,6 +94,39 @@ export default function AppSidebar({
           <Plus className="size-4" aria-hidden="true" />
           {t("sidebar.newChat")}
         </button>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onExportBackup}
+            className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-xs text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            <Download className="size-3.5" aria-hidden="true" />
+            {t("sidebar.exportBackup")}
+          </button>
+          <button
+            type="button"
+            disabled={isImportingBackup}
+            onClick={() => backupInputRef.current?.click()}
+            className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-xs text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-wait disabled:opacity-50"
+          >
+            <Upload className="size-3.5" aria-hidden="true" />
+            {isImportingBackup
+              ? t("sidebar.importingBackup")
+              : t("sidebar.importBackup")}
+          </button>
+          <input
+            ref={backupInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            aria-label={t("sidebar.importBackup")}
+            onChange={(event) => {
+              const [file] = event.currentTarget.files ?? [];
+              event.currentTarget.value = "";
+              if (file) onImportBackup(file);
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex items-center justify-between px-4 pb-2 pt-3">

@@ -39,9 +39,11 @@ import {
   type PromptPresetId,
 } from "./core/providers/presets";
 import {
+  createSessionBackup,
   deleteUserPromptPreset,
   getMessagesBySession,
   getUserPromptPresets,
+  importSessionBackup,
   saveUserPromptPreset,
 } from "./db/indexedDB";
 import { useAutoScroll } from "./hooks/useAutoScroll";
@@ -110,6 +112,7 @@ function App() {
   const [input, setInput] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isImportingBackup, setIsImportingBackup] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isWebLLMLoading, setIsWebLLMLoading] = useState(false);
@@ -466,6 +469,72 @@ function App() {
     }
   }
 
+  async function handleExportBackup() {
+    try {
+      const backup = await createSessionBackup();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `localagent-ui-backup-${new Date()
+        .toISOString()
+        .slice(0, 10)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (cause) {
+      setRequestError(
+        cause instanceof Error
+          ? cause.message
+          : t("errors.exportBackup"),
+      );
+    }
+  }
+
+  async function handleImportBackup(file: File) {
+    setIsImportingBackup(true);
+    setRequestError(null);
+    try {
+      let backup: unknown;
+      try {
+        backup = JSON.parse(await file.text());
+      } catch {
+        throw new Error(t("errors.invalidBackupJson"));
+      }
+
+      const result = await importSessionBackup(backup);
+      const [, importedPresets] = await Promise.all([
+        reloadSessions(),
+        getUserPromptPresets(),
+      ]);
+      setUserPromptPresets(importedPresets);
+
+      if (!useChatStore.getState().currentSessionId && result.sessions[0]) {
+        await switchSession(result.sessions[0].id);
+        applySessionSettings(result.sessions[0].id);
+      }
+
+      setCopyToast(
+        t("sidebar.importSuccess", {
+          sessions: result.sessions.length,
+          messages: result.messageCount,
+          presets: result.promptPresetCount,
+        }),
+      );
+    } catch (cause) {
+      setRequestError(
+        cause instanceof Error
+          ? t("errors.importBackupWithDetail", { detail: cause.message })
+          : t("errors.importBackup"),
+      );
+    } finally {
+      setIsImportingBackup(false);
+    }
+  }
+
   async function handleSendMessage(promptText: string) {
     const content = promptText.trim();
     if (!content) {
@@ -617,8 +686,11 @@ function App() {
           isLoadingSessions={isLoadingSessions}
           searchQuery={sessionSearch}
           copyToast={copyToast}
+          isImportingBackup={isImportingBackup}
           onSearchChange={setSessionSearch}
           onNewChat={() => void handleNewChat()}
+          onExportBackup={() => void handleExportBackup()}
+          onImportBackup={(file) => void handleImportBackup(file)}
           onSwitchSession={(sessionId) => void handleSwitchSession(sessionId)}
           onExportSession={(sessionId, format) =>
             void handleExportSession(sessionId, format)

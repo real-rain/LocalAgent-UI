@@ -41,6 +41,7 @@
   * **In-Browser WebGPU**: Runs 100% local, zero-backend LLMs (via `@mlc-ai/web-llm` in WebWorker).
   * **Ollama REST API**: Connects to local Ollama endpoints with dynamic health checks and auto-discovery of pulled models.
 * **🎭 Prompt Presets & Session Settings**: Includes Code Assistant, Translator, and Custom Agent prompts; create, edit, delete, and reuse custom presets across sessions. Engine, model, and prompt selection are stored per session in IndexedDB.
+* **📦 Session Backup & Restore**: Export all sessions, chat histories, and custom prompt presets to a single JSON backup. Imports append records without overwriting local data and also support legacy single-session JSON exports.
 * **📝 Rich Markdown**: Syntax-highlighted code, KaTeX math, and Mermaid diagrams render locally in the browser.
 * **🔒 100% Local-First Data Privacy**: Sessions, model settings, system prompts, and full chat histories stay strictly inside your browser's IndexedDB (via Dexie.js). Streaming replies are periodically saved so partial output can be recovered after a reload.
 * **💨 Anti-Jank Stream Pipeline**: Engineered with Zustand state buffering and RAF-throttled smart auto-scrolling for high-frequency token streams without UI jitter.

@@ -9,7 +9,7 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 import Dexie, { type Table } from "dexie";
-import type { Message } from "../types/chat";
+import type { Message, ToolCallStatus } from "../types/chat";
 import type { PromptPresetId } from "../core/providers/presets";
 import { PROMPT_PRESETS, type PromptPreset } from "../core/providers/presets";
 
@@ -28,6 +28,21 @@ export type SessionSettings = Pick<
     Session,
     "model" | "engine" | "presetId"
 >;
+
+export interface SessionBackup {
+    format: "localagent-ui-backup";
+    version: 1;
+    exportedAt: number;
+    sessions: Session[];
+    messages: Message[];
+    promptPresets: PromptPreset[];
+}
+
+export interface SessionImportResult {
+    sessions: Session[];
+    messageCount: number;
+    promptPresetCount: number;
+}
 
 /** 用于会话、消息与用户自定义提示词预设的 Dexie 数据结构。 */
 export class LocalAgentDatabase extends Dexie {
@@ -212,6 +227,310 @@ export async function getMessagesBySession(
  */
 export async function getAllSessions(): Promise<Session[]> {
     return db.sessions.toArray();
+}
+
+/**
+ * 创建包含会话、消息和自定义提示词预设的完整备份快照。
+ * @returns 可序列化为 JSON 的完整本地数据备份。
+ */
+export async function createSessionBackup(): Promise<SessionBackup> {
+    return db.transaction(
+        "r",
+        db.sessions,
+        db.messages,
+        db.promptPresets,
+        async () => ({
+            format: "localagent-ui-backup",
+            version: 1,
+            exportedAt: Date.now(),
+            sessions: await db.sessions.toArray(),
+            messages: await db.messages.toArray(),
+            promptPresets: await db.promptPresets.toArray(),
+        }),
+    );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value);
+}
+
+function validateSession(value: unknown): Session {
+    if (
+        !isRecord(value) ||
+        typeof value.id !== "string" ||
+        !value.id ||
+        typeof value.title !== "string" ||
+        typeof value.model !== "string" ||
+        !isFiniteNumber(value.createdAt) ||
+        !isFiniteNumber(value.updatedAt) ||
+        (value.engine !== undefined &&
+            value.engine !== "ollama" &&
+            value.engine !== "webgpu") ||
+        (value.presetId !== undefined && typeof value.presetId !== "string")
+    ) {
+        throw new Error("The backup contains an invalid session.");
+    }
+
+    return {
+        id: value.id,
+        title: value.title,
+        model: value.model,
+        createdAt: value.createdAt,
+        updatedAt: value.updatedAt,
+        ...(value.engine ? { engine: value.engine } : {}),
+        ...(value.presetId ? { presetId: value.presetId } : {}),
+    };
+}
+
+function validateMessage(value: unknown): Message {
+    const validStatuses = new Set<string>([
+        "streaming",
+        "complete",
+        "failed",
+        "error",
+        "interrupted",
+    ]);
+    if (
+        !isRecord(value) ||
+        typeof value.id !== "string" ||
+        !value.id ||
+        typeof value.sessionId !== "string" ||
+        !value.sessionId ||
+        !isFiniteNumber(value.createdAt) ||
+        (value.role !== "user" && value.role !== "assistant") ||
+        typeof value.content !== "string" ||
+        (value.status !== undefined &&
+            (typeof value.status !== "string" ||
+                !validStatuses.has(value.status))) ||
+        (value.thoughtProcess !== undefined &&
+            typeof value.thoughtProcess !== "string") ||
+        (value.toolCalls !== undefined && !Array.isArray(value.toolCalls))
+    ) {
+        throw new Error("The backup contains an invalid message.");
+    }
+
+    const message: Message = {
+        id: value.id,
+        sessionId: value.sessionId,
+        createdAt: value.createdAt,
+        role: value.role,
+        content: value.content,
+        ...(value.status ? { status: value.status as Message["status"] } : {}),
+        ...(value.thoughtProcess !== undefined
+            ? { thoughtProcess: value.thoughtProcess }
+            : {}),
+    };
+
+    if (Array.isArray(value.toolCalls)) {
+        message.toolCalls = value.toolCalls.map((toolCall) => {
+            if (
+                !isRecord(toolCall) ||
+                typeof toolCall.name !== "string" ||
+                !["pending", "running", "success", "failed"].includes(
+                    String(toolCall.status),
+                )
+            ) {
+                throw new Error("The backup contains an invalid tool call.");
+            }
+            return {
+                name: toolCall.name,
+                status: toolCall.status as ToolCallStatus,
+                arguments: toolCall.arguments,
+                ...(Object.hasOwn(toolCall, "result")
+                    ? { result: toolCall.result }
+                    : {}),
+            };
+        });
+    }
+
+    if (value.performance !== undefined) {
+        const performance = value.performance;
+        if (
+            !isRecord(performance) ||
+            !isFiniteNumber(performance.startTime) ||
+            !isFiniteNumber(performance.totalTokens) ||
+            (performance.endTime !== undefined &&
+                !isFiniteNumber(performance.endTime)) ||
+            (performance.engine !== "ollama" &&
+                performance.engine !== "webgpu") ||
+            typeof performance.model !== "string"
+        ) {
+            throw new Error("The backup contains invalid performance data.");
+        }
+        message.performance = {
+            startTime: performance.startTime,
+            totalTokens: performance.totalTokens,
+            engine: performance.engine,
+            model: performance.model,
+            ...(performance.endTime !== undefined
+                ? { endTime: performance.endTime }
+                : {}),
+        };
+    }
+
+    return message;
+}
+
+function validatePromptPreset(value: unknown): PromptPreset {
+    if (
+        !isRecord(value) ||
+        typeof value.id !== "string" ||
+        !value.id ||
+        typeof value.name !== "string" ||
+        !value.name.trim() ||
+        typeof value.prompt !== "string" ||
+        !value.prompt.trim() ||
+        value.builtIn === true
+    ) {
+        throw new Error("The backup contains an invalid custom prompt preset.");
+    }
+
+    if (PROMPT_PRESETS.some((preset) => preset.id === value.id)) {
+        throw new Error("The backup contains a reserved prompt preset ID.");
+    }
+
+    return {
+        id: value.id,
+        name: value.name,
+        prompt: value.prompt,
+        builtIn: false,
+    };
+}
+
+function assertUniqueIds<T extends { id: string }>(
+    records: T[],
+    recordName: string,
+): void {
+    const ids = new Set<string>();
+    for (const record of records) {
+        if (ids.has(record.id)) {
+            throw new Error(`The backup contains duplicate ${recordName} IDs.`);
+        }
+        ids.add(record.id);
+    }
+}
+
+/**
+ * 验证并追加完整备份或旧版单会话 JSON；导入记录会重新生成 ID，不覆盖现有数据。
+ * @param input 已解析的 JSON 数据。
+ * @returns 导入的会话和记录数量。
+ */
+export async function importSessionBackup(
+    input: unknown,
+): Promise<SessionImportResult> {
+    if (!isRecord(input)) {
+        throw new Error("The selected file is not a valid LocalAgent-UI backup.");
+    }
+
+    let sessions: Session[];
+    let messages: Message[];
+    let promptPresets: PromptPreset[];
+
+    if (input.format === "localagent-ui-backup") {
+        if (
+            input.version !== 1 ||
+            !Array.isArray(input.sessions) ||
+            !Array.isArray(input.messages) ||
+            !Array.isArray(input.promptPresets)
+        ) {
+            throw new Error("The backup version or structure is not supported.");
+        }
+        sessions = input.sessions.map(validateSession);
+        messages = input.messages.map(validateMessage);
+        promptPresets = input.promptPresets.map(validatePromptPreset);
+    } else if ("session" in input && "messages" in input) {
+        if (!Array.isArray(input.messages)) {
+            throw new Error("The selected session file is invalid.");
+        }
+        sessions = [validateSession(input.session)];
+        messages = input.messages.map(validateMessage);
+        promptPresets = [];
+    } else {
+        throw new Error("The selected file is not a supported backup.");
+    }
+
+    if (sessions.length === 0 && promptPresets.length === 0) {
+        throw new Error("The backup does not contain any sessions or presets.");
+    }
+
+    assertUniqueIds(sessions, "session");
+    assertUniqueIds(messages, "message");
+    assertUniqueIds(promptPresets, "prompt preset");
+
+    const sourceSessionIds = new Set(sessions.map((session) => session.id));
+    if (messages.some((message) => !sourceSessionIds.has(message.sessionId))) {
+        throw new Error("The backup contains messages without a matching session.");
+    }
+
+    const existingPresets = await db.promptPresets.toArray();
+    const sessionIdMap = new Map(
+        sessions.map((session) => [session.id, crypto.randomUUID()]),
+    );
+    const messageIdMap = new Map(
+        messages.map((message) => [message.id, crypto.randomUUID()]),
+    );
+    const presetIdMap = new Map(
+        promptPresets.map((preset) => [preset.id, crypto.randomUUID()]),
+    );
+    const availablePresetIds = new Set([
+        ...PROMPT_PRESETS.map((preset) => preset.id),
+        ...existingPresets.map((preset) => preset.id),
+        ...promptPresets.map((preset) => preset.id),
+    ]);
+
+    const importedSessions = sessions.map((session) => {
+        const presetId = session.presetId;
+        return {
+            ...session,
+            id: sessionIdMap.get(session.id)!,
+            ...(presetId
+                ? {
+                    presetId: presetIdMap.get(presetId) ??
+                        (availablePresetIds.has(presetId)
+                            ? presetId
+                            : "code-assistant"),
+                }
+                : {}),
+        };
+    });
+    const importedMessages = messages.map((message) => ({
+        ...message,
+        id: messageIdMap.get(message.id)!,
+        sessionId: sessionIdMap.get(message.sessionId)!,
+        ...(message.status === "streaming" ? { status: "interrupted" as const } : {}),
+    }));
+    const importedPresets = promptPresets.map((preset) => ({
+        ...preset,
+        id: presetIdMap.get(preset.id)!,
+    }));
+
+    await db.transaction(
+        "rw",
+        db.sessions,
+        db.messages,
+        db.promptPresets,
+        async () => {
+            if (importedSessions.length > 0) {
+                await db.sessions.bulkAdd(importedSessions);
+            }
+            if (importedMessages.length > 0) {
+                await db.messages.bulkAdd(importedMessages);
+            }
+            if (importedPresets.length > 0) {
+                await db.promptPresets.bulkAdd(importedPresets);
+            }
+        },
+    );
+
+    return {
+        sessions: importedSessions,
+        messageCount: importedMessages.length,
+        promptPresetCount: importedPresets.length,
+    };
 }
 
 /**

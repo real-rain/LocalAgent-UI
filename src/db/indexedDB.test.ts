@@ -12,10 +12,12 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+    createSessionBackup,
     createSession,
     db,
     deleteUserPromptPreset,
     getUserPromptPresets,
+    importSessionBackup,
     recoverInterruptedMessages,
     saveMessage,
     saveUserPromptPreset,
@@ -172,5 +174,112 @@ describe("local database workflows", () => {
         await expect(deleteUserPromptPreset("translator")).rejects.toThrow(
             "cannot be deleted",
         );
+    });
+
+    it("exports and imports full backups without overwriting existing records", async () => {
+        const existing = await createSession("Existing", "model-local");
+        const preset = {
+            id: "backup-reviewer",
+            name: "Backup Reviewer",
+            prompt: "Review imported code.",
+            builtIn: false,
+        };
+        const backupSession = {
+            id: existing.id,
+            title: "Imported review",
+            model: "model-backup",
+            engine: "ollama" as const,
+            presetId: preset.id,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+        const backupMessage: Message = {
+            id: "backup-message",
+            sessionId: backupSession.id,
+            createdAt: Date.now(),
+            role: "assistant",
+            content: "Partially generated",
+            status: "streaming",
+            thoughtProcess: "Imported thought",
+        };
+        const result = await importSessionBackup({
+            format: "localagent-ui-backup",
+            version: 1,
+            exportedAt: Date.now(),
+            sessions: [backupSession],
+            messages: [backupMessage],
+            promptPresets: [preset],
+        });
+
+        expect(result.sessions).toHaveLength(1);
+        expect(result.sessions[0]?.id).not.toBe(existing.id);
+        expect(result.sessions[0]?.presetId).not.toBe(preset.id);
+        expect(result.messageCount).toBe(1);
+        expect(result.promptPresetCount).toBe(1);
+
+        const importedMessage = await db.messages
+            .where("sessionId")
+            .equals(result.sessions[0]!.id)
+            .first();
+        expect(importedMessage).toMatchObject({
+            id: expect.not.stringMatching(/^backup-message$/),
+            status: "interrupted",
+            content: backupMessage.content,
+            thoughtProcess: backupMessage.thoughtProcess,
+        });
+        expect(await db.sessions.get(existing.id)).toMatchObject({
+            title: "Existing",
+            model: "model-local",
+        });
+        expect(await db.promptPresets.get(result.sessions[0]!.presetId!)).toMatchObject({
+            name: preset.name,
+            prompt: preset.prompt,
+        });
+
+        const exportedBackup = await createSessionBackup();
+        expect(exportedBackup).toMatchObject({
+            format: "localagent-ui-backup",
+            version: 1,
+        });
+        expect(exportedBackup.sessions).toHaveLength(2);
+        expect(exportedBackup.messages).toHaveLength(1);
+        expect(exportedBackup.promptPresets).toHaveLength(1);
+    });
+
+    it("imports legacy single-session JSON exports", async () => {
+        const session = await createSession("Legacy", "model-a");
+        const result = await importSessionBackup({
+            session,
+            messages: [
+                {
+                    id: "legacy-message",
+                    sessionId: session.id,
+                    createdAt: Date.now(),
+                    role: "user",
+                    content: "Legacy export",
+                },
+            ],
+        });
+
+        expect(result.sessions[0]?.id).not.toBe(session.id);
+        expect(result.messageCount).toBe(1);
+        expect(
+            await db.messages.where("sessionId").equals(result.sessions[0]!.id).count(),
+        ).toBe(1);
+    });
+
+    it("rejects malformed backups before writing any records", async () => {
+        await expect(
+            importSessionBackup({
+                format: "localagent-ui-backup",
+                version: 1,
+                exportedAt: Date.now(),
+                sessions: [{ id: "bad-session" }],
+                messages: [],
+                promptPresets: [],
+            }),
+        ).rejects.toThrow("invalid session");
+        expect(await db.sessions.count()).toBe(0);
+        expect(await db.messages.count()).toBe(0);
     });
 });
