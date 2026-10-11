@@ -35,7 +35,9 @@
 ## ✨ Key Highlights
 
 * **🧠 Visual Chain of Thought (CoT)**: Automatically parses `<think>...</think>` streaming tags into collapsible, high-tech reasoning cards (`ThoughtAccordion`).
-* **🔧 Interactive Tool Calling Tree**: Visualizes agent function executions with real-time status nodes (`pending` | `running` | `success` | `failed`) and interactive JSON inspectors.
+* **🛠️ Real In-Browser Tool Calling Loop**: WebGPU and Ollama models can request registered JavaScript tools; the app executes them in the browser, displays arguments and results, feeds results back into the conversation, and resumes generation so the model can respond using them.
+* **🔧 Built-in Frontend Tools**: `get_current_weather` retrieves live conditions from Open-Meteo, `calculator` evaluates arithmetic with exact rational decimal inputs, and `web_search` provides an explicitly simulated result when no search service is configured.
+* **🛡️ Tool Execution Controls**: Enable **Confirm tool execution** to approve or reject calls from their cards. Calls have a 10-second timeout, errors are returned to the model, and an eight-round limit prevents endless tool loops.
 * **⚡ Client-Side Live Code Sandbox**: Renders generated HTML, SVG, CSS, and JS in an isolated iframe (`CodeArtifactBox`) with 1-click fullscreen preview and auto-merging for fragmented LLM outputs.
 * **🔌 Hybrid Provider Architecture**:
   * **In-Browser WebGPU**: Runs 100% local, zero-backend LLMs (via `@mlc-ai/web-llm` in WebWorker).
@@ -43,7 +45,7 @@
 * **🎭 Prompt Presets & Session Settings**: Includes Code Assistant, Translator, and Custom Agent prompts; create, edit, delete, and reuse custom presets across sessions. Engine, model, and prompt selection are stored per session in IndexedDB.
 * **📦 Session Backup & Restore**: Export all sessions, chat histories, and custom prompt presets to a single JSON backup. Imports append records without overwriting local data and also support legacy single-session JSON exports.
 * **📝 Rich Markdown**: Syntax-highlighted code, KaTeX math, and Mermaid diagrams render locally in the browser.
-* **🔒 100% Local-First Data Privacy**: Sessions, model settings, system prompts, and full chat histories stay strictly inside your browser's IndexedDB (via Dexie.js). Streaming replies are periodically saved so partial output can be recovered after a reload.
+* **🔒 Local-First Data Privacy**: Sessions, model settings, system prompts, and chat histories are stored in your browser's IndexedDB (via Dexie.js). WebGPU inference runs in-browser, while Ollama requests go to your local Ollama service. The weather tool sends the requested city to Open-Meteo for live data; `web_search` is simulated and does not query a search provider. Streaming replies are periodically saved so partial output can be recovered after a reload.
 * **💨 Anti-Jank Stream Pipeline**: Engineered with Zustand state buffering and RAF-throttled smart auto-scrolling for high-frequency token streams without UI jitter.
 
 ---
