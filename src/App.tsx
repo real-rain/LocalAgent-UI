@@ -715,7 +715,12 @@ function App() {
       while (!controller.signal.aborted) {
         const conversation = useChatStore
           .getState()
-          .messages.filter((message) => message.id !== streamMessageId)
+          .messages
+          .filter(
+            (message) =>
+              message.id !== streamMessageId ||
+              Boolean(message.content || message.toolCalls?.length),
+          )
           .map((message) => ({
             role: message.role,
             content:
@@ -724,6 +729,7 @@ function App() {
                   message.content,
                   ...message.toolCalls.map((toolCall) =>
                     `<tool_call>${JSON.stringify({
+                      id: toolCall.id,
                       name: toolCall.name,
                       arguments: toolCall.arguments,
                     })}</tool_call>`,
@@ -743,13 +749,14 @@ function App() {
           if (controller.signal.aborted) break;
           if (chunk.type === "tool_call") {
             const toolCall: ToolCall = {
-              id: crypto.randomUUID(),
+              id: chunk.toolCall.id,
               name: chunk.toolCall.name,
               arguments: chunk.toolCall.arguments,
               status: requireToolConfirmation
                 ? "awaiting_confirmation"
                 : "tool_executing",
             };
+            if (!useChatStore.getState().claimToolCallId(toolCall.id)) continue;
             await addToolCall(streamMessageId, toolCall);
             callsForRound.push(toolCall);
           } else {
@@ -769,6 +776,7 @@ function App() {
             await updateToolCall(streamMessageId, toolCall.id, {
               status: "failed",
               result,
+              completed: true,
             });
             await addMessage({
               id: crypto.randomUUID(),
@@ -798,6 +806,7 @@ function App() {
               await updateToolCall(streamMessageId, toolCall.id, {
                 status: "rejected",
                 result,
+                completed: true,
               });
               await addMessage({
                 id: crypto.randomUUID(),
@@ -829,18 +838,28 @@ function App() {
             await updateToolCall(streamMessageId, toolCall.id, {
               status: "executed",
               result,
+              completed: true,
             });
           } catch (cause) {
             if (controller.signal.aborted) break;
+            const errorMessage =
+              cause instanceof Error
+                ? cause.message
+                : "Tool execution failed.";
+            const timedOut = errorMessage.includes("Tool execution timed out");
             result = {
-              error:
-                cause instanceof Error
-                  ? cause.message
-                  : "Tool execution failed.",
+              error: errorMessage,
+              ...(timedOut
+                ? {
+                    instruction:
+                      "The tool call has failed. Do not retry it; answer directly using the information already available. 工具调用已失败，请直接根据现有信息回答。",
+                  }
+                : {}),
             };
             await updateToolCall(streamMessageId, toolCall.id, {
-              status: "failed",
+              status: timedOut ? "error" : "failed",
               result,
+              completed: true,
             });
           }
           await addMessage({

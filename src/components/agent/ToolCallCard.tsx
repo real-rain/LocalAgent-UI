@@ -8,7 +8,7 @@
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     AlertTriangle,
@@ -38,7 +38,16 @@ export function ToolCallCard({
     const { i18n } = useTranslation();
     const isChinese = i18n.resolvedLanguage?.startsWith("zh") ?? false;
     const [isOpen, setIsOpen] = useState(true);
+    const [hasResponded, setHasResponded] = useState(false);
+    const hasRespondedRef = useRef(false);
     const contentId = useId();
+
+    const respond = (callback: (toolCallId: string) => void) => {
+        if (hasRespondedRef.current) return;
+        hasRespondedRef.current = true;
+        setHasResponded(true);
+        callback(toolCall.id);
+    };
 
     let statusIcon;
     let statusText: string;
@@ -76,6 +85,7 @@ export function ToolCallCard({
             statusClassName = "text-emerald-600 dark:text-emerald-400";
             break;
         case "failed":
+        case "error":
             statusIcon = <AlertTriangle className="size-4 text-red-500" aria-hidden="true" />;
             statusText = `Failed ${toolCall.name}`;
             statusClassName = "text-red-600 dark:text-red-400";
@@ -114,15 +124,17 @@ export function ToolCallCard({
                 <div className="flex justify-end gap-2 border-t border-zinc-200 px-3 py-2 dark:border-zinc-700">
                     <button
                         type="button"
-                        onClick={() => onReject(toolCall.id)}
+                        disabled={hasResponded}
+                        onClick={() => respond(onReject)}
                         className="rounded-md border border-zinc-300 px-2.5 py-1.5 font-sans text-xs text-zinc-600 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                     >
                         {isChinese ? "拒绝" : "Reject"}
                     </button>
                     <button
                         type="button"
-                        onClick={() => onApprove(toolCall.id)}
-                        className="rounded-md bg-blue-600 px-2.5 py-1.5 font-sans text-xs text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                        disabled={hasResponded}
+                        onClick={() => respond(onApprove)}
+                        className="rounded-md bg-blue-600 px-2.5 py-1.5 font-sans text-xs text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isChinese ? "允许执行" : "Allow execution"}
                     </button>

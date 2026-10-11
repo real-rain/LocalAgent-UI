@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { getEnabledTools, getSystemToolPrompt, getTool } from "./registry";
 
 describe("tool registry", () => {
@@ -32,5 +32,49 @@ describe("tool registry", () => {
     await expect(
       calculator.execute({ expression: "globalThis.alert(1)" }),
     ).rejects.toThrow("Use numbers");
+  });
+
+  it("returns mock weather when the Open-Meteo request fails", async () => {
+    const weather = getTool("get_current_weather");
+    if (!weather) throw new Error("Weather tool is not registered.");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("Network unavailable"));
+
+    try {
+      await expect(weather.execute({ city: "Beijing" })).resolves.toEqual({
+        city: "Beijing",
+        temperature: "22°C",
+        weather: "Sunny (Mock Fallback)",
+        note: "Live API unavailable, returned fallback weather.",
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.open-meteo.com/v1/forecast?latitude=39.9042&longitude=116.4074&current_weather=true",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it("returns mock weather when the request exceeds its three-second timeout", async () => {
+    const weather = getTool("get_current_weather");
+    if (!weather) throw new Error("Weather tool is not registered.");
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(() => new Promise(() => undefined));
+
+    try {
+      const result = weather.execute({ city: "Beijing" });
+      await vi.advanceTimersByTimeAsync(3_000);
+      await expect(result).resolves.toMatchObject({
+        city: "Beijing",
+        weather: "Sunny (Mock Fallback)",
+      });
+    } finally {
+      fetchMock.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

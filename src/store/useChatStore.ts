@@ -31,6 +31,7 @@ interface ChatState {
   currentSessionId: string | null;
   messages: Message[];
   isStreaming: boolean;
+  executedToolCallIds: Set<string>;
   storageError: string | null;
   activeArtifact: ActiveArtifact | null;
   setActiveArtifact: (artifact: ActiveArtifact | null) => void;
@@ -48,10 +49,11 @@ interface ChatState {
   deleteSession: (sessionId: string) => Promise<void>;
   addMessage: (message: Message) => Promise<void>;
   addToolCall: (messageId: string, toolCall: ToolCall) => Promise<void>;
+  claimToolCallId: (toolCallId: string) => boolean;
   updateToolCall: (
     messageId: string,
     toolCallId: string,
-    update: Partial<Pick<ToolCall, "status" | "result">>,
+    update: Partial<Pick<ToolCall, "status" | "result" | "completed">>,
   ) => Promise<void>;
   startGeneration: (
     controller: AbortController,
@@ -290,6 +292,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   currentSessionId: null,
   messages: [],
   isStreaming: false,
+  executedToolCallIds: new Set<string>(),
   storageError: null,
   activeArtifact: null,
   setActiveArtifact: (activeArtifact) => set({ activeArtifact }),
@@ -401,9 +404,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   addToolCall: async (messageId, toolCall) => {
     let updatedMessage: Message | undefined;
+    let foundMessage = false;
+    let duplicate = false;
     set((state) => ({
       messages: state.messages.map((message) => {
         if (message.id !== messageId) return message;
+        foundMessage = true;
+        if (message.toolCalls?.some((existing) => existing.id === toolCall.id)) {
+          duplicate = true;
+          return message;
+        }
         updatedMessage = {
           ...message,
           toolCalls: [...(message.toolCalls ?? []), toolCall],
@@ -411,11 +421,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return updatedMessage;
       }),
     }));
-    if (!updatedMessage) {
+    if (!foundMessage) {
       throw new Error("Cannot attach a tool call to a missing message.");
+    }
+    if (duplicate) return;
+    if (!updatedMessage) {
+      throw new Error("Unable to attach the tool call to its message.");
     }
     const updatedAt = await saveMessage(updatedMessage);
     updateSessionActivity(updatedMessage.sessionId, updatedAt);
+  },
+  claimToolCallId: (toolCallId) => {
+    const executedToolCallIds = get().executedToolCallIds;
+    if (executedToolCallIds.has(toolCallId)) return false;
+    set({ executedToolCallIds: new Set(executedToolCallIds).add(toolCallId) });
+    return true;
   },
   updateToolCall: async (messageId, toolCallId, update) => {
     let updatedMessage: Message | undefined;

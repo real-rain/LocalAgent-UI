@@ -17,8 +17,9 @@ export type StreamChunk =
     | {
         type: "tool_call";
         toolCall: {
-        name: string;
-        arguments: Record<string, unknown>;
+            id: string;
+            name: string;
+            arguments: Record<string, unknown>;
         };
     };
 
@@ -26,6 +27,7 @@ const THOUGHT_START_MARKERS = ["<think>", "[reasoning]", "Thinking Process:"];
 const THOUGHT_END_MARKERS = ["</think>", "[/reasoning]"];
 const TOOL_CALL_START = "<tool_call>";
 const TOOL_CALL_END = "</tool_call>";
+let toolCallSequence = 0;
 const THOUGHT_LIST_START =
     /^(?:分析|思考|梳理|理解|检查|评估|推演|analysis\b|analy[sz]e\b|thinking\b|think\b|review\b|consider\b|understand\b|inspect\b|identify\b)/i;
 
@@ -315,7 +317,7 @@ export class StreamParser {
 
     private parseToolCall(
         value: string,
-    ): { name: string; arguments: Record<string, unknown> } | undefined {
+    ): { id: string; name: string; arguments: Record<string, unknown> } | undefined {
         try {
             const parsed: unknown = JSON.parse(value.trim());
             if (
@@ -332,6 +334,7 @@ export class StreamParser {
                 return undefined;
             }
             return {
+                id: `tool_call_${Date.now()}_${++toolCallSequence}_${Math.random().toString(36).substring(2, 7)}`,
                 name: parsed.name,
                 arguments: parsed.arguments as Record<string, unknown>,
             };

@@ -17,6 +17,7 @@ export type ToolCallStatus =
   | "tool_executing"
   | "executed"
   | "failed"
+  | "error"
   | "rejected";
 
 export type MessageStatus =
@@ -50,6 +51,7 @@ export interface ToolCall {
   id: string;
   name: string;
   status: ToolCallStatus;
+  completed?: boolean;
   arguments: Record<string, unknown>;
   result?: unknown;
 }

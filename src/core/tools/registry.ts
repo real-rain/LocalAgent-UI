@@ -145,59 +145,92 @@ function evaluateExpression(expression: string): string {
 const tools: Tool[] = [
   {
     name: "get_current_weather",
-    description: "Get the current weather and temperature for a city.",
+    description: "Get the current weather and temperature for Beijing.",
     parameters: {
       type: "object",
       properties: {
-        city: { type: "string", description: "City name, preferably in English." },
+        city: {
+          type: "string",
+          description: "City name. The configured Open-Meteo endpoint reports Beijing.",
+        },
       },
       required: ["city"],
     },
-    execute: async (args, { signal } = {}) => {
-      const city = requireString(args, "city");
-      const geocodingUrl = new URL(
-        "https://geocoding-api.open-meteo.com/v1/search",
-      );
-      geocodingUrl.searchParams.set("name", city);
-      geocodingUrl.searchParams.set("count", "1");
-      geocodingUrl.searchParams.set("language", "en");
-      geocodingUrl.searchParams.set("format", "json");
-      const geocodingResponse = await fetch(geocodingUrl, { signal });
-      if (!geocodingResponse.ok) {
-        throw new Error(`Weather location lookup failed (HTTP ${geocodingResponse.status}).`);
-      }
-      const locations = (await geocodingResponse.json()) as {
-        results?: Array<{ name: string; latitude: number; longitude: number; country?: string }>;
+    execute: async (_args, { signal } = {}) => {
+      const fallback = {
+        city: "Beijing",
+        temperature: "22°C",
+        weather: "Sunny (Mock Fallback)",
+        note: "Live API unavailable, returned fallback weather.",
       };
-      const location = locations.results?.[0];
-      if (!location) throw new Error(`No weather location found for "${city}".`);
+      const requestController = new AbortController();
+      const abortRequest = () => requestController.abort(signal?.reason);
+      signal?.addEventListener("abort", abortRequest, { once: true });
+      let timeout: ReturnType<typeof setTimeout> | undefined;
 
-      const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
-      weatherUrl.searchParams.set(
-        "latitude",
-        String(location.latitude),
-      );
-      weatherUrl.searchParams.set(
-        "longitude",
-        String(location.longitude),
-      );
-      weatherUrl.searchParams.set("current", "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m");
-      weatherUrl.searchParams.set("timezone", "auto");
-      const weatherResponse = await fetch(weatherUrl, { signal });
-      if (!weatherResponse.ok) {
-        throw new Error(`Weather lookup failed (HTTP ${weatherResponse.status}).`);
+      try {
+        const response = await Promise.race([
+          fetch(
+            "https://api.open-meteo.com/v1/forecast?latitude=39.9042&longitude=116.4074&current_weather=true",
+            { signal: requestController.signal },
+          ),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => {
+              requestController.abort();
+              reject(new Error("Weather request timed out."));
+            }, 3_000);
+          }),
+        ]);
+        if (!response.ok) {
+          throw new Error(`Weather lookup failed (HTTP ${response.status}).`);
+        }
+        const data = (await response.json()) as {
+          current_weather?: { temperature?: number; weathercode?: number };
+        };
+        const currentWeather = data.current_weather;
+        if (
+          typeof currentWeather?.temperature !== "number" ||
+          typeof currentWeather.weathercode !== "number"
+        ) {
+          throw new Error("The weather service returned no current conditions.");
+        }
+        const weatherDescriptions: Record<number, string> = {
+          0: "Clear sky",
+          1: "Mainly clear",
+          2: "Partly cloudy",
+          3: "Overcast",
+          45: "Fog",
+          48: "Rime fog",
+          51: "Light drizzle",
+          53: "Moderate drizzle",
+          55: "Dense drizzle",
+          61: "Slight rain",
+          63: "Moderate rain",
+          65: "Heavy rain",
+          71: "Slight snow",
+          73: "Moderate snow",
+          75: "Heavy snow",
+          80: "Rain showers",
+          81: "Moderate rain showers",
+          82: "Violent rain showers",
+          95: "Thunderstorm",
+          96: "Thunderstorm with hail",
+          99: "Thunderstorm with heavy hail",
+        };
+        return {
+          city: "Beijing",
+          temperature: `${currentWeather.temperature}°C`,
+          weather:
+            weatherDescriptions[currentWeather.weathercode] ??
+            `Weather code ${currentWeather.weathercode}`,
+          source: "Open-Meteo",
+        };
+      } catch {
+        return fallback;
+      } finally {
+        if (timeout !== undefined) clearTimeout(timeout);
+        signal?.removeEventListener("abort", abortRequest);
       }
-      const weather = (await weatherResponse.json()) as {
-        current?: Record<string, number | string>;
-        current_units?: Record<string, string>;
-      };
-      if (!weather.current) throw new Error("The weather service returned no current conditions.");
-      return {
-        location: [location.name, location.country].filter(Boolean).join(", "),
-        current: weather.current,
-        units: weather.current_units,
-        source: "Open-Meteo",
-      };
     },
   },
   {

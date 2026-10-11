@@ -346,6 +346,9 @@ export function ChatMessageBubble({
     const isStreaming = message.status === "streaming";
     const previewHtml = createCombinedHtml(extractMarkdownCodeBlocks(message.content));
     const markdownComponents = createMarkdownComponents(previewHtml, isStreaming);
+    const uniqueToolCalls = message.toolCalls
+        ? [...new Map(message.toolCalls.map((toolCall) => [toolCall.id, toolCall])).values()]
+        : [];
 
     if (
         isAssistant &&
@@ -369,9 +372,9 @@ export function ChatMessageBubble({
                     </div>
                 )}
 
-                {isAssistant && message.toolCalls && message.toolCalls.length > 0 && (
+                {isAssistant && uniqueToolCalls.length > 0 && (
                     <div className="chat-message__section chat-message__tool-calls">
-                        {message.toolCalls.map((toolCall, index) => (
+                        {uniqueToolCalls.map((toolCall, index) => (
                             <ToolCallCard
                                 key={toolCall.id || `${toolCall.name}-${index}`}
                                 toolCall={toolCall}

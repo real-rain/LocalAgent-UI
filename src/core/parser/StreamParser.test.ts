@@ -48,11 +48,12 @@ describe("StreamParser", () => {
             ...parser.flush(),
         ];
 
-        expect(chunks).toEqual([
+        expect(chunks).toMatchObject([
             { type: "text_delta", content: "Before " },
             {
                 type: "tool_call",
                 toolCall: {
+                    id: expect.stringMatching(/^tool_call_/),
                     name: "calculator",
                     arguments: { expression: "1+2" },
                 },
@@ -65,10 +66,11 @@ describe("StreamParser", () => {
         const parser = new StreamParser();
         expect(
             parser.parse('{"name":"calculator","arguments":{"expression":"0.1+0.2"}}'),
-        ).toEqual([
+        ).toMatchObject([
             {
                 type: "tool_call",
                 toolCall: {
+                    id: expect.stringMatching(/^tool_call_/),
                     name: "calculator",
                     arguments: { expression: "0.1+0.2" },
                 },
@@ -76,15 +78,29 @@ describe("StreamParser", () => {
         ]);
     });
 
+    it("assigns a distinct id to each generated tool call", () => {
+        const parser = new StreamParser();
+        const first = parser.parse('{"name":"calculator","arguments":{"expression":"1+1"}}');
+        const second = parser.parse('{"name":"calculator","arguments":{"expression":"1+1"}}');
+
+        expect(first[0]?.type).toBe("tool_call");
+        expect(second[0]?.type).toBe("tool_call");
+        if (first[0]?.type !== "tool_call" || second[0]?.type !== "tool_call") {
+            throw new Error("Expected both parsed chunks to be tool calls.");
+        }
+        expect(first[0].toolCall.id).not.toBe(second[0].toolCall.id);
+    });
+
     it("extracts a raw tool-call object following explanatory text", () => {
         const parser = new StreamParser();
         expect(
             parser.parse('Calculating now: {"name":"calculator","arguments":{"expression":"2+2"}}'),
-        ).toEqual([
+        ).toMatchObject([
             { type: "text_delta", content: "Calculating now: " },
             {
                 type: "tool_call",
                 toolCall: {
+                    id: expect.stringMatching(/^tool_call_/),
                     name: "calculator",
                     arguments: { expression: "2+2" },
                 },
