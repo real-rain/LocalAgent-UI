@@ -34,7 +34,7 @@
 ## ✨ 主要特性
 
 * **🧠 可视化思维链（CoT）**：自动解析 `<think>...</think>` 流式标签，并将其展示为可折叠的高科技推理卡片（`ThoughtAccordion`）。
-* **🛠️ 浏览器内真实工具调用闭环**：WebGPU 和 Ollama 模型均可请求已注册的 JavaScript 工具；应用会在浏览器中执行工具、展示入参与结果、将结果回传至对话上下文，并继续生成，让模型基于工具结果作答。
+* **🛠️ 浏览器端工具调用闭环**：支持模型自主触发并执行前端函数（计算器、天气查询、Web 预览沙盒），并内置前端人机交互确认机制（`工具执行前确认`）。
 * **🔧 内置前端工具**：`get_current_weather` 通过 Open-Meteo 获取实时天气；`calculator` 使用精确有理数运算处理十进制计算；未配置搜索服务时，`web_search` 会返回明确标注为模拟的结果。
 * **🛡️ 工具执行控制**：开启 **工具执行前确认** 后，可在工具卡片上允许或拒绝调用。每次执行设有 10 秒超时（天气请求为 3 秒并在失败时返回 Mock 数据），错误会回传给模型；工具调用 ID 去重和最多 8 轮调用限制共同避免重复执行与无穷循环。
 * **⚡ 客户端实时代码沙箱**：在隔离的 iframe（`CodeArtifactBox`）中渲染生成的 HTML、SVG、CSS 和 JS，支持一键全屏预览，并自动合并被拆分的 LLM 输出。
@@ -71,6 +71,22 @@ npm install
 
 # 启动本地开发服务器
 npm run dev
+```
+
+## 🔧 工具调用测试示例
+
+选择模型并开始对话，然后发送以下任一提示词。开启**工具执行前确认**后，请在工具卡片上允许执行。
+
+| Tool Name (工具名称) | Purpose (作用) | Example Prompt (测试提示词) |
+| :--- | :--- | :--- |
+| **Calculator (计算器)** | 高精度数学运算 | "请调用计算器工具帮我计算 `98765 * 43210` 的精确结果。" |
+| **Weather API (天气查询)** | 拉取 Open-Meteo 北京实时数据（服务不可用时返回模拟数据） | "请查询北京当前的天气情况，并输出工具返回的数据。" |
+| **Web Sandbox (代码沙盒)** | 前端代码生成与实时渲染 | "用 HTML/CSS/JS 编写一个 3D 翻转卡片，并在沙盒中预览。" |
+
+## 🏗️ 工具调用架构 / 流程
+
+```text
+LLM Stream ➔ StreamParser (Detect Tool Call) ➔ User Confirmation (Optional) ➔ Browser JS Execution ➔ Feedback Tool Result to Context ➔ Final LLM Response
 ```
 
 ### ⚙️ 本地 Ollama CORS 配置指南

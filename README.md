@@ -35,7 +35,7 @@
 ## ✨ Key Highlights
 
 * **🧠 Visual Chain of Thought (CoT)**: Automatically parses `<think>...</think>` streaming tags into collapsible, high-tech reasoning cards (`ThoughtAccordion`).
-* **🛠️ Real In-Browser Tool Calling Loop**: WebGPU and Ollama models can request registered JavaScript tools; the app executes them in the browser, displays arguments and results, feeds results back into the conversation, and resumes generation so the model can respond using them.
+* **🛠️ In-Browser Tool Calling Loop**: Supports autonomous function execution (Calculator, Weather API, Web Sandbox) with client-side user confirmation safety controls (`Confirmation required`).
 * **🔧 Built-in Frontend Tools**: `get_current_weather` retrieves live conditions from Open-Meteo, `calculator` evaluates arithmetic with exact rational decimal inputs, and `web_search` provides an explicitly simulated result when no search service is configured.
 * **🛡️ Tool Execution Controls**: Enable **Confirm tool execution** to approve or reject calls from their cards. Calls have a 10-second timeout, errors are returned to the model, and an eight-round limit prevents endless tool loops.
 * **⚡ Client-Side Live Code Sandbox**: Renders generated HTML, SVG, CSS, and JS in an isolated iframe (`CodeArtifactBox`) with 1-click fullscreen preview and auto-merging for fragmented LLM outputs.
@@ -72,6 +72,22 @@ npm install
 
 # Start local dev server
 npm run dev
+```
+
+## 🔧 Trying Agent Tool Calls
+
+Select a model, start a conversation, and send one of these prompts. When **Confirm tool execution** is enabled, approve the call from its tool card.
+
+| Tool Name (工具名称) | Purpose (作用) | Example Prompt (测试提示词) |
+| :--- | :--- | :--- |
+| **Calculator (计算器)** | 高精度数学运算 | "请调用计算器工具帮我计算 `98765 * 43210` 的精确结果。" |
+| **Weather API (天气查询)** | 真实 Open-Meteo 数据拉取（服务不可用时返回模拟数据） | "请查询北京当前的天气情况，并输出工具返回的数据。" |
+| **Web Sandbox (代码沙盒)** | 前端代码生成与实时渲染 | "用 HTML/CSS/JS 编写一个 3D 翻转卡片，并在沙盒中预览。" |
+
+## 🏗️ Tool Calling Architecture / Flow
+
+```text
+LLM Stream ➔ StreamParser (Detect Tool Call) ➔ User Confirmation (Optional) ➔ Browser JS Execution ➔ Feedback Tool Result to Context ➔ Final LLM Response
 ```
 
 ### ⚙️ Local Ollama CORS Setup Guide
