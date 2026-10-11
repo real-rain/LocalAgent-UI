@@ -301,7 +301,9 @@ function validateMessage(value: unknown): Message {
         typeof value.sessionId !== "string" ||
         !value.sessionId ||
         !isFiniteNumber(value.createdAt) ||
-        (value.role !== "user" && value.role !== "assistant") ||
+        (value.role !== "user" &&
+            value.role !== "assistant" &&
+            value.role !== "tool") ||
         typeof value.content !== "string" ||
         (value.status !== undefined &&
             (typeof value.status !== "string" ||
@@ -323,25 +325,55 @@ function validateMessage(value: unknown): Message {
         ...(value.thoughtProcess !== undefined
             ? { thoughtProcess: value.thoughtProcess }
             : {}),
-    };
+    }
 
     if (Array.isArray(value.toolCalls)) {
         message.toolCalls = value.toolCalls.map((toolCall) => {
             if (
                 !isRecord(toolCall) ||
                 typeof toolCall.name !== "string" ||
-                !["pending", "running", "success", "failed"].includes(
+                ![
+                    "awaiting_confirmation",
+                    "tool_executing",
+                    "executed",
+                    "failed",
+                    "rejected",
+                    "pending",
+                    "running",
+                    "success",
+                ].includes(
                     String(toolCall.status),
                 )
             ) {
                 throw new Error("The backup contains an invalid tool call.");
             }
+            const legacyStatus = String(toolCall.status);
+            const status =
+                legacyStatus === "pending"
+                    ? "pending"
+                    : legacyStatus === "running"
+                        ? "failed"
+                        : legacyStatus === "success"
+                            ? "executed"
+                            : (legacyStatus as ToolCallStatus);
             return {
+                id:
+                    typeof toolCall.id === "string"
+                        ? toolCall.id
+                        : crypto.randomUUID(),
                 name: toolCall.name,
-                status: toolCall.status as ToolCallStatus,
-                arguments: toolCall.arguments,
+                status,
+                arguments: isRecord(toolCall.arguments)
+                    ? toolCall.arguments
+                    : {},
                 ...(Object.hasOwn(toolCall, "result")
                     ? { result: toolCall.result }
+                    : legacyStatus === "running"
+                        ? {
+                            result: {
+                                error: "Tool execution was interrupted before the backup was created.",
+                            },
+                        }
                     : {}),
             };
         });

@@ -32,6 +32,8 @@ import AppSidebar from "./components/layout/AppSidebar";
 import CodeArtifactBox from "./components/agent/CodeArtifactBox";
 import { OllamaProvider } from "./core/providers/OllamaProvider";
 import type { ChatProvider } from "./core/providers/ChatProvider";
+import { getTool } from "./core/tools/registry";
+import { withSystemToolPrompt } from "./core/providers/systemPrompt";
 import {
   getPresetPrompt,
   PROMPT_PRESETS,
@@ -48,7 +50,7 @@ import {
 } from "./db/indexedDB";
 import { useAutoScroll } from "./hooks/useAutoScroll";
 import { useChatStore } from "./store/useChatStore";
-import type { Message } from "./types/chat";
+import type { Message, ToolCall } from "./types/chat";
 import type { WebLLMProvider } from "./core/providers/WebLLMProvider";
 
 let webLLMProvider: WebLLMProvider | null = null;
@@ -56,6 +58,8 @@ let webLLMProvider: WebLLMProvider | null = null;
 type Engine = "ollama" | "webgpu";
 
 const CONTACT_EMAIL = "1936648485@qq.com";
+const TOOL_EXECUTION_TIMEOUT_MS = 10_000;
+const MAX_TOOL_ROUNDS = 8;
 
 const starterSuggestions = [
   {
@@ -71,6 +75,56 @@ const starterSuggestions = [
     id: "quickAnswer",
   },
 ];
+
+async function executeToolWithTimeout(
+  tool: NonNullable<ReturnType<typeof getTool>>,
+  args: Record<string, unknown>,
+  signal: AbortSignal,
+): Promise<unknown> {
+  if (signal.aborted) {
+    throw new DOMException("Tool execution was aborted.", "AbortError");
+  }
+
+  const toolController = new AbortController();
+  const abortTool = () => toolController.abort(signal.reason);
+  signal.addEventListener("abort", abortTool, { once: true });
+  let abortPendingRequest: (() => void) | undefined;
+  let timeout: number | undefined;
+  try {
+    return await Promise.race([
+      tool.execute(args, { signal: toolController.signal }),
+      new Promise<never>((_, reject) => {
+        timeout = window.setTimeout(() => {
+          toolController.abort();
+          reject(new Error(`Tool execution timed out after ${TOOL_EXECUTION_TIMEOUT_MS / 1000} seconds.`));
+        }, TOOL_EXECUTION_TIMEOUT_MS);
+      }),
+      new Promise<never>((_, reject) => {
+        abortPendingRequest = () =>
+          reject(new DOMException("Tool execution was aborted.", "AbortError"));
+        signal.addEventListener(
+          "abort",
+          abortPendingRequest,
+          { once: true },
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) window.clearTimeout(timeout);
+    signal.removeEventListener("abort", abortTool);
+    if (abortPendingRequest) {
+      signal.removeEventListener("abort", abortPendingRequest);
+    }
+  }
+}
+
+function serializeToolResult(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch (cause) {
+    throw new Error("Tool result could not be serialized.", { cause });
+  }
+}
 
 /**
  * 协调聊天状态、Provider 生命周期、会话导航与主界面。
@@ -88,6 +142,8 @@ function App() {
     (state) => state.updateSessionSettings,
   );
   const addMessage = useChatStore((state) => state.addMessage);
+  const addToolCall = useChatStore((state) => state.addToolCall);
+  const updateToolCall = useChatStore((state) => state.updateToolCall);
   const updateTitleFromFirstMessage = useChatStore(
     (state) => state.updateTitleFromFirstMessage,
   );
@@ -112,6 +168,7 @@ function App() {
   const [input, setInput] = useState("");
   const [sessionSearch, setSessionSearch] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [requireToolConfirmation, setRequireToolConfirmation] = useState(false);
   const [isImportingBackup, setIsImportingBackup] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -131,8 +188,35 @@ function App() {
     scrollToBottom,
   } = useAutoScroll(messages, isStreaming);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const toolDecisionResolvers = useRef(
+    new Map<string, (approved: boolean) => void>(),
+  );
   const isCreatingSessionRef = useRef(false);
   const webGPUInitializationRef = useRef<Promise<void> | null>(null);
+
+  const resolveToolDecision = useCallback(
+    (toolCallId: string, approved: boolean) => {
+      toolDecisionResolvers.current.get(toolCallId)?.(approved);
+    },
+    [],
+  );
+
+  function waitForToolDecision(
+    toolCallId: string,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    return new Promise((resolve) => {
+      const finish = (approved: boolean) => {
+        toolDecisionResolvers.current.delete(toolCallId);
+        signal.removeEventListener("abort", onAbort);
+        resolve(approved);
+      };
+      const onAbort = () => finish(false);
+      toolDecisionResolvers.current.set(toolCallId, finish);
+      signal.addEventListener("abort", onAbort, { once: true });
+      if (signal.aborted) onAbort();
+    });
+  }
 
   useEffect(() => {
     if (!copyToast) return;
@@ -609,10 +693,6 @@ function App() {
       });
       if (controller.signal.aborted) return;
 
-      const conversation = useChatStore
-        .getState()
-        .messages.filter((message) => message.id !== streamMessageId)
-        .map(({ role, content: text }) => ({ role, content: text }));
       // 按所选引擎选择 Provider，后续复用统一的流式消费与状态更新流程。
       let provider: ChatProvider;
       if (engineMode === "webgpu") {
@@ -625,18 +705,158 @@ function App() {
         provider = new OllamaProvider();
       }
 
-      const systemPrompt = getPresetPrompt(
-        promptPresetId,
-        [...PROMPT_PRESETS, ...userPromptPresets],
+      const systemPrompt = withSystemToolPrompt(
+        getPresetPrompt(
+          promptPresetId,
+          [...PROMPT_PRESETS, ...userPromptPresets],
+        ),
       );
-      for await (const chunk of provider.chatStream(
-        modelName,
-        conversation,
-        systemPrompt,
-        controller.signal,
-      )) {
-        if (controller.signal.aborted) break;
-        appendStreamChunk(streamMessageId, chunk);
+      let completedToolRounds = 0;
+      while (!controller.signal.aborted) {
+        const conversation = useChatStore
+          .getState()
+          .messages.filter((message) => message.id !== streamMessageId)
+          .map((message) => ({
+            role: message.role,
+            content:
+              message.role === "assistant" && message.toolCalls?.length
+                ? [
+                  message.content,
+                  ...message.toolCalls.map((toolCall) =>
+                    `<tool_call>${JSON.stringify({
+                      name: toolCall.name,
+                      arguments: toolCall.arguments,
+                    })}</tool_call>`,
+                  ),
+                ]
+                  .filter(Boolean)
+                  .join("\n")
+                : message.content,
+          }));
+        const callsForRound: ToolCall[] = [];
+        for await (const chunk of provider.chatStream(
+          modelName,
+          conversation,
+          systemPrompt,
+          controller.signal,
+        )) {
+          if (controller.signal.aborted) break;
+          if (chunk.type === "tool_call") {
+            const toolCall: ToolCall = {
+              id: crypto.randomUUID(),
+              name: chunk.toolCall.name,
+              arguments: chunk.toolCall.arguments,
+              status: requireToolConfirmation
+                ? "awaiting_confirmation"
+                : "tool_executing",
+            };
+            await addToolCall(streamMessageId, toolCall);
+            callsForRound.push(toolCall);
+          } else {
+            appendStreamChunk(streamMessageId, chunk);
+          }
+        }
+
+        if (controller.signal.aborted || callsForRound.length === 0) break;
+        completedToolRounds += 1;
+
+        for (const toolCall of callsForRound) {
+          if (controller.signal.aborted) break;
+          if (completedToolRounds > MAX_TOOL_ROUNDS) {
+            const result = {
+              error: `Tool-call limit reached (${MAX_TOOL_ROUNDS} rounds).`,
+            };
+            await updateToolCall(streamMessageId, toolCall.id, {
+              status: "failed",
+              result,
+            });
+            await addMessage({
+              id: crypto.randomUUID(),
+              sessionId,
+              createdAt: Date.now(),
+              role: "tool",
+              content: serializeToolResult({
+                tool_call_id: toolCall.id,
+                name: toolCall.name,
+                ...result,
+              }),
+            });
+            setRequestError(
+              `Stopped after ${MAX_TOOL_ROUNDS} tool-call rounds to prevent an endless loop.`,
+            );
+            continue;
+          }
+
+          if (requireToolConfirmation) {
+            const approved = await waitForToolDecision(
+              toolCall.id,
+              controller.signal,
+            );
+            if (controller.signal.aborted) break;
+            if (!approved) {
+              const result = { error: "The user denied this tool execution." };
+              await updateToolCall(streamMessageId, toolCall.id, {
+                status: "rejected",
+                result,
+              });
+              await addMessage({
+                id: crypto.randomUUID(),
+                sessionId,
+                createdAt: Date.now(),
+                role: "tool",
+                content: serializeToolResult({
+                  tool_call_id: toolCall.id,
+                  name: toolCall.name,
+                  ...result,
+                }),
+              });
+              continue;
+            }
+          }
+
+          await updateToolCall(streamMessageId, toolCall.id, {
+            status: "tool_executing",
+          });
+          const tool = getTool(toolCall.name);
+          let result: unknown;
+          try {
+            if (!tool) throw new Error(`Unknown tool "${toolCall.name}".`);
+            result = await executeToolWithTimeout(
+              tool,
+              toolCall.arguments,
+              controller.signal,
+            );
+            await updateToolCall(streamMessageId, toolCall.id, {
+              status: "executed",
+              result,
+            });
+          } catch (cause) {
+            if (controller.signal.aborted) break;
+            result = {
+              error:
+                cause instanceof Error
+                  ? cause.message
+                  : "Tool execution failed.",
+            };
+            await updateToolCall(streamMessageId, toolCall.id, {
+              status: "failed",
+              result,
+            });
+          }
+          await addMessage({
+            id: crypto.randomUUID(),
+            sessionId,
+            createdAt: Date.now(),
+            role: "tool",
+            content: serializeToolResult({
+              tool_call_id: toolCall.id,
+              name: toolCall.name,
+              result,
+            }),
+          });
+        }
+
+        if (completedToolRounds > MAX_TOOL_ROUNDS) break;
       }
 
       if (!controller.signal.aborted) {
@@ -757,6 +977,20 @@ function App() {
                 onSavePreset={handleSavePromptPreset}
                 onDeletePreset={handleDeletePromptPreset}
               />
+              <label className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={requireToolConfirmation}
+                  disabled={isStreaming}
+                  onChange={(event) =>
+                    setRequireToolConfirmation(event.currentTarget.checked)
+                  }
+                  className="accent-violet-500"
+                />
+                {i18n.resolvedLanguage?.startsWith("zh")
+                  ? "工具执行前确认"
+                  : "Confirm tool execution"}
+              </label>
             </div>
           </fieldset>
           <button
@@ -835,9 +1069,20 @@ function App() {
                   </div>
                 </div>
               ) : (
-                messages.map((message) => (
-                  <ChatMessageBubble key={message.id} message={message} />
-                ))
+                messages
+                  .filter((message) => message.role !== "tool")
+                  .map((message) => (
+                    <ChatMessageBubble
+                      key={message.id}
+                      message={message}
+                      onToolApprove={(toolCallId) =>
+                        resolveToolDecision(toolCallId, true)
+                      }
+                      onToolReject={(toolCallId) =>
+                        resolveToolDecision(toolCallId, false)
+                      }
+                    />
+                  ))
               )}
               {requestError && (
                 <div

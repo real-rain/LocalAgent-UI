@@ -9,7 +9,15 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 
-export type ToolCallStatus = "pending" | "running" | "success" | "failed";
+export type ToolCallStatus =
+  | "pending"
+  | "running"
+  | "success"
+  | "awaiting_confirmation"
+  | "tool_executing"
+  | "executed"
+  | "failed"
+  | "rejected";
 
 export type MessageStatus =
   | "streaming"
@@ -22,7 +30,7 @@ export interface Message {
   id: string;
   sessionId: string;
   createdAt: number;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
   status?: MessageStatus;
   thoughtProcess?: string;
@@ -39,8 +47,9 @@ export interface MessagePerformance {
 }
 
 export interface ToolCall {
+  id: string;
   name: string;
   status: ToolCallStatus;
-  arguments: unknown;
+  arguments: Record<string, unknown>;
   result?: unknown;
 }

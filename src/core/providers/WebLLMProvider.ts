@@ -121,7 +121,13 @@ export class WebLLMProvider implements ChatProvider {
             const stream = await engine.chat.completions.create({
                 messages: [
                     { role: "system", content: systemPrompt },
-                    ...messages,
+                    ...messages.map(({ role, content }) => ({
+                        role: role === "tool" ? "user" as const : role,
+                        content:
+                            role === "tool"
+                                ? `Tool result:\n${content}`
+                                : content,
+                    })),
                 ],
                 temperature: 0.6,
                 top_p: 0.9,

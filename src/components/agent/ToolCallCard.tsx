@@ -9,6 +9,7 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 import { useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     AlertTriangle,
     Check,
@@ -20,6 +21,8 @@ import type { ToolCall } from "../../types/chat";
 
 interface ToolCallCardProps {
     toolCall: ToolCall;
+    onApprove?: (toolCallId: string) => void;
+    onReject?: (toolCallId: string) => void;
 }
 
 /**
@@ -27,8 +30,14 @@ interface ToolCallCardProps {
  * @param props 要显示的工具调用数据。
  * @returns 工具调用状态卡片。
  */
-export function ToolCallCard({ toolCall }: ToolCallCardProps) {
-    const [isOpen, setIsOpen] = useState(false);
+export function ToolCallCard({
+    toolCall,
+    onApprove,
+    onReject,
+}: ToolCallCardProps) {
+    const { i18n } = useTranslation();
+    const isChinese = i18n.resolvedLanguage?.startsWith("zh") ?? false;
+    const [isOpen, setIsOpen] = useState(true);
     const contentId = useId();
 
     let statusIcon;
@@ -51,10 +60,30 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
             statusText = `Executed ${toolCall.name}`;
             statusClassName = "text-emerald-600 dark:text-emerald-400";
             break;
+        case "awaiting_confirmation":
+            statusIcon = <span className="size-2 rounded-full bg-amber-500" aria-hidden="true" />;
+            statusText = `Confirmation required: ${toolCall.name}`;
+            statusClassName = "text-amber-600 dark:text-amber-400";
+            break;
+        case "tool_executing":
+            statusIcon = <Loader2 className="size-4 animate-spin text-blue-500" aria-hidden="true" />;
+            statusText = `Executing ${toolCall.name}...`;
+            statusClassName = "text-blue-600 dark:text-blue-400";
+            break;
+        case "executed":
+            statusIcon = <Check className="size-4 text-emerald-500" aria-hidden="true" />;
+            statusText = `Executed ${toolCall.name}`;
+            statusClassName = "text-emerald-600 dark:text-emerald-400";
+            break;
         case "failed":
             statusIcon = <AlertTriangle className="size-4 text-red-500" aria-hidden="true" />;
             statusText = `Failed ${toolCall.name}`;
             statusClassName = "text-red-600 dark:text-red-400";
+            break;
+        case "rejected":
+            statusIcon = <AlertTriangle className="size-4 text-amber-500" aria-hidden="true" />;
+            statusText = `Rejected ${toolCall.name}`;
+            statusClassName = "text-amber-600 dark:text-amber-400";
             break;
     }
 
@@ -81,6 +110,25 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
                 </button>
             </div>
 
+            {toolCall.status === "awaiting_confirmation" && onApprove && onReject && (
+                <div className="flex justify-end gap-2 border-t border-zinc-200 px-3 py-2 dark:border-zinc-700">
+                    <button
+                        type="button"
+                        onClick={() => onReject(toolCall.id)}
+                        className="rounded-md border border-zinc-300 px-2.5 py-1.5 font-sans text-xs text-zinc-600 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                        {isChinese ? "拒绝" : "Reject"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onApprove(toolCall.id)}
+                        className="rounded-md bg-blue-600 px-2.5 py-1.5 font-sans text-xs text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    >
+                        {isChinese ? "允许执行" : "Allow execution"}
+                    </button>
+                </div>
+            )}
+
             {isOpen && (
                 <div id={contentId} className="space-y-3 border-t border-zinc-200 p-3 dark:border-zinc-700">
                     <div className="space-y-1.5">
@@ -95,7 +143,9 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
                         <h3 className="font-semibold uppercase tracking-wider text-zinc-500">Result</h3>
                         <pre className="overflow-x-auto whitespace-pre-wrap break-words">
                             <code className="block rounded bg-zinc-900 p-2 text-xs text-zinc-200">
-                                {JSON.stringify(toolCall.result, null, 2)}
+                                {toolCall.result === undefined
+                                    ? "No result yet."
+                                    : JSON.stringify(toolCall.result, null, 2)}
                             </code>
                         </pre>
                     </div>

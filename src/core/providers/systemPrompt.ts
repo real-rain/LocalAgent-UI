@@ -2,6 +2,12 @@
  * @file 保存 Ollama 与 WebGPU Provider 使用的系统提示词。
  * @module Core/Providers
  */
+import { getSystemToolPrompt } from "../tools/registry";
+
+export function withSystemToolPrompt(systemPrompt: string): string {
+  return `${systemPrompt.trim()}\n\n${getSystemToolPrompt()}`.trim();
+}
+
 export const CODE_FORMATTING_SYSTEM_PROMPT =
   "You are an AI coding assistant and a front-end coding expert. When asked to generate HTML/CSS component previews:\n" +
   "1. Always wrap the complete code inside a single ```html ... ``` block.\n" +

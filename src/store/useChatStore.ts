@@ -23,7 +23,7 @@ import {
   type Session,
   type SessionSettings,
 } from "../db/indexedDB";
-import type { Message } from "../types/chat";
+import type { Message, ToolCall } from "../types/chat";
 import type { StreamChunk } from "../core/parser/StreamParser";
 
 interface ChatState {
@@ -47,6 +47,12 @@ interface ChatState {
   ) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   addMessage: (message: Message) => Promise<void>;
+  addToolCall: (messageId: string, toolCall: ToolCall) => Promise<void>;
+  updateToolCall: (
+    messageId: string,
+    toolCallId: string,
+    update: Partial<Pick<ToolCall, "status" | "result">>,
+  ) => Promise<void>;
   startGeneration: (
     controller: AbortController,
     id: string,
@@ -393,6 +399,46 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const updatedAt = await saveMessage(messageToAdd);
     updateSessionActivity(messageToAdd.sessionId, updatedAt);
   },
+  addToolCall: async (messageId, toolCall) => {
+    let updatedMessage: Message | undefined;
+    set((state) => ({
+      messages: state.messages.map((message) => {
+        if (message.id !== messageId) return message;
+        updatedMessage = {
+          ...message,
+          toolCalls: [...(message.toolCalls ?? []), toolCall],
+        };
+        return updatedMessage;
+      }),
+    }));
+    if (!updatedMessage) {
+      throw new Error("Cannot attach a tool call to a missing message.");
+    }
+    const updatedAt = await saveMessage(updatedMessage);
+    updateSessionActivity(updatedMessage.sessionId, updatedAt);
+  },
+  updateToolCall: async (messageId, toolCallId, update) => {
+    let updatedMessage: Message | undefined;
+    set((state) => ({
+      messages: state.messages.map((message) => {
+        if (message.id !== messageId || !message.toolCalls) return message;
+        const toolCalls = message.toolCalls.map((toolCall) => {
+          if (toolCall.id !== toolCallId) return toolCall;
+          return { ...toolCall, ...update };
+        });
+        if (toolCalls.every((toolCall, index) => toolCall === message.toolCalls?.[index])) {
+          return message;
+        }
+        updatedMessage = { ...message, toolCalls };
+        return updatedMessage;
+      }),
+    }));
+    if (!updatedMessage) {
+      throw new Error("Cannot update a missing tool call.");
+    }
+    const updatedAt = await saveMessage(updatedMessage);
+    updateSessionActivity(updatedMessage.sessionId, updatedAt);
+  },
   /**
    * 在会话尚无消息时，根据首条提示词设置会话标题。
    * @param sessionId 要重命名的会话 ID。
@@ -464,6 +510,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const stoppedMessage: Message = {
         ...failedMessage,
         status: "error",
+        toolCalls: failedMessage.toolCalls?.map((toolCall) =>
+          toolCall.status === "awaiting_confirmation" ||
+          toolCall.status === "tool_executing"
+            ? {
+              ...toolCall,
+              status: "failed",
+              result: { error: "Tool execution was interrupted." },
+            }
+            : toolCall,
+        ),
         performance: failedMessage.performance
           ? { ...failedMessage.performance, endTime: Date.now() }
           : undefined,
@@ -506,8 +562,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     };
     if (chunk.type === "thought_delta") {
       pending.thoughtProcess.push(chunk.content);
-    } else {
+    } else if (chunk.type === "text_delta") {
       pending.content.push(chunk.content);
+    } else {
+      return;
     }
     pendingStreamChunks.set(id, pending);
     scheduleStreamFlush();

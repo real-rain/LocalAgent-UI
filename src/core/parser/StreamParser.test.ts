@@ -38,4 +38,66 @@ describe("StreamParser", () => {
             { type: "text_delta", content: "<thi" },
         ]);
     });
+
+    it("extracts tool calls wrapped in tags across stream chunks", () => {
+        const parser = new StreamParser();
+        const chunks = [
+            ...parser.parse("Before <tool_"),
+            ...parser.parse('call>{"name":"calculator","arguments":{"expression":"1+2"}}'),
+            ...parser.parse("</tool_call> after"),
+            ...parser.flush(),
+        ];
+
+        expect(chunks).toEqual([
+            { type: "text_delta", content: "Before " },
+            {
+                type: "tool_call",
+                toolCall: {
+                    name: "calculator",
+                    arguments: { expression: "1+2" },
+                },
+            },
+            { type: "text_delta", content: " after" },
+        ]);
+    });
+
+    it("extracts a tool call emitted as a standalone JSON object", () => {
+        const parser = new StreamParser();
+        expect(
+            parser.parse('{"name":"calculator","arguments":{"expression":"0.1+0.2"}}'),
+        ).toEqual([
+            {
+                type: "tool_call",
+                toolCall: {
+                    name: "calculator",
+                    arguments: { expression: "0.1+0.2" },
+                },
+            },
+        ]);
+    });
+
+    it("extracts a raw tool-call object following explanatory text", () => {
+        const parser = new StreamParser();
+        expect(
+            parser.parse('Calculating now: {"name":"calculator","arguments":{"expression":"2+2"}}'),
+        ).toEqual([
+            { type: "text_delta", content: "Calculating now: " },
+            {
+                type: "tool_call",
+                toolCall: {
+                    name: "calculator",
+                    arguments: { expression: "2+2" },
+                },
+            },
+        ]);
+    });
+
+    it("preserves malformed tool-call markup as visible text", () => {
+        const parser = new StreamParser();
+        expect(
+            [...parser.parse("<tool_call>{not json}</tool_call>"), ...parser.flush()],
+        ).toEqual([
+            { type: "text_delta", content: "<tool_call>{not json}</tool_call>" },
+        ]);
+    });
 });

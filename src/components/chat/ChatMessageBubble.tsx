@@ -24,6 +24,8 @@ import "./ChatMessageBubble.css";
 
 interface ChatMessageBubbleProps {
     message: Message;
+    onToolApprove?: (toolCallId: string) => void;
+    onToolReject?: (toolCallId: string) => void;
 }
 
 interface MarkdownCodeBlock {
@@ -334,7 +336,11 @@ function MessagePerformanceFooter({ message }: ChatMessageBubbleProps) {
  * @param props 要渲染的消息。
  * @returns 格式化后的聊天消息；已完成且内容为空的助手消息返回 null。
  */
-export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
+export function ChatMessageBubble({
+    message,
+    onToolApprove,
+    onToolReject,
+}: ChatMessageBubbleProps) {
     const { t } = useTranslation();
     const isAssistant = message.role === "assistant";
     const isStreaming = message.status === "streaming";
@@ -367,8 +373,10 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
                     <div className="chat-message__section chat-message__tool-calls">
                         {message.toolCalls.map((toolCall, index) => (
                             <ToolCallCard
-                                key={`${toolCall.name}-${index}`}
+                                key={toolCall.id || `${toolCall.name}-${index}`}
                                 toolCall={toolCall}
+                                onApprove={onToolApprove}
+                                onReject={onToolReject}
                             />
                         ))}
                     </div>

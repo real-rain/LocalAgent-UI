@@ -9,13 +9,23 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 
-export interface StreamChunk {
-    type: "thought_delta" | "text_delta";
-    content: string;
-}
+export type StreamChunk =
+    | {
+        type: "thought_delta" | "text_delta";
+        content: string;
+    }
+    | {
+        type: "tool_call";
+        toolCall: {
+        name: string;
+        arguments: Record<string, unknown>;
+        };
+    };
 
 const THOUGHT_START_MARKERS = ["<think>", "[reasoning]", "Thinking Process:"];
 const THOUGHT_END_MARKERS = ["</think>", "[/reasoning]"];
+const TOOL_CALL_START = "<tool_call>";
+const TOOL_CALL_END = "</tool_call>";
 const THOUGHT_LIST_START =
     /^(?:分析|思考|梳理|理解|检查|评估|推演|analysis\b|analy[sz]e\b|thinking\b|think\b|review\b|consider\b|understand\b|inspect\b|identify\b)/i;
 
@@ -24,6 +34,7 @@ const THOUGHT_LIST_START =
  */
 export class StreamParser {
     private inThinkBlock = false;
+    private inToolCallBlock = false;
     private buffer = "";
     private hasEmittedText = false;
 
@@ -60,6 +71,77 @@ export class StreamParser {
 
         while (this.buffer.length > 0) {
             const normalizedBuffer = this.buffer.toLowerCase();
+
+            if (this.inToolCallBlock) {
+                const endIndex = normalizedBuffer.indexOf(TOOL_CALL_END);
+                if (endIndex < 0) {
+                    if (flush) {
+                        this.pushChunk(
+                            chunks,
+                            `${TOOL_CALL_START}${this.buffer}`,
+                        );
+                        this.buffer = "";
+                        this.inToolCallBlock = false;
+                    }
+                    break;
+                }
+
+                const rawCall = this.buffer.slice(0, endIndex);
+                const toolCall = this.parseToolCall(rawCall);
+                if (toolCall) {
+                    chunks.push({ type: "tool_call", toolCall });
+                } else {
+                    this.pushChunk(
+                        chunks,
+                        `${TOOL_CALL_START}${rawCall}${TOOL_CALL_END}`,
+                    );
+                }
+                this.buffer = this.buffer.slice(endIndex + TOOL_CALL_END.length);
+                this.inToolCallBlock = false;
+                continue;
+            }
+
+            const toolMarkerIndex = this.inThinkBlock
+                ? -1
+                : normalizedBuffer.indexOf(TOOL_CALL_START);
+            const jsonStartIndex = this.inThinkBlock
+                ? -1
+                : this.findJsonCandidateStart();
+            if (
+                jsonStartIndex >= 0 &&
+                (toolMarkerIndex < 0 || jsonStartIndex < toolMarkerIndex)
+            ) {
+                if (jsonStartIndex > 0) {
+                    this.pushChunk(chunks, this.buffer.slice(0, jsonStartIndex));
+                    this.buffer = this.buffer.slice(jsonStartIndex);
+                }
+                const jsonEnd = this.findBalancedJsonEnd(this.buffer);
+                if (jsonEnd === null) {
+                    if (flush) {
+                        this.pushChunk(chunks, this.buffer);
+                        this.buffer = "";
+                    }
+                    break;
+                }
+                const rawCall = this.buffer.slice(0, jsonEnd);
+                const toolCall = this.parseToolCall(rawCall);
+                if (toolCall) {
+                    chunks.push({ type: "tool_call", toolCall });
+                } else {
+                    this.pushChunk(chunks, rawCall);
+                }
+                this.buffer = this.buffer.slice(jsonEnd);
+                continue;
+            }
+
+            if (toolMarkerIndex >= 0) {
+                this.pushChunk(chunks, this.buffer.slice(0, toolMarkerIndex));
+                this.buffer = this.buffer.slice(
+                    toolMarkerIndex + TOOL_CALL_START.length,
+                );
+                this.inToolCallBlock = true;
+                continue;
+            }
 
             if (this.inThinkBlock) {
                 const endMarker = this.findMarker(
@@ -121,7 +203,7 @@ export class StreamParser {
                 ? this.buffer.length
                 : this.buffer.length -
                 this.possibleMarkerSuffixLength(
-                    THOUGHT_START_MARKERS,
+                    [...THOUGHT_START_MARKERS, TOOL_CALL_START],
                     normalizedBuffer,
                 );
             if (safeLength > 0) {
@@ -133,6 +215,7 @@ export class StreamParser {
 
         if (flush) {
             this.inThinkBlock = false;
+            this.inToolCallBlock = false;
             this.buffer = "";
         }
 
@@ -177,6 +260,84 @@ export class StreamParser {
         }
 
         return maxLength;
+    }
+
+    private findJsonCandidateStart(): number {
+        let index = this.buffer.indexOf("{");
+        while (index >= 0) {
+            const remainder = this.buffer.slice(index + 1).trimStart();
+            const namePrefix = '"name"';
+            const comparable = remainder.slice(0, namePrefix.length);
+            const couldBeName = namePrefix.startsWith(comparable);
+            const afterName = remainder.slice(namePrefix.length).trimStart();
+            if (
+                couldBeName &&
+                (remainder.length < namePrefix.length ||
+                    afterName.length === 0 ||
+                    afterName.startsWith(":"))
+            ) {
+                return index;
+            }
+            index = this.buffer.indexOf("{", index + 1);
+        }
+        return -1;
+    }
+
+    private findBalancedJsonEnd(value: string): number | null {
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+
+        for (let index = 0; index < value.length; index += 1) {
+            const character = value[index];
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (character === "\\") {
+                    escaped = true;
+                } else if (character === '"') {
+                    inString = false;
+                }
+                continue;
+            }
+
+            if (character === '"') {
+                inString = true;
+            } else if (character === "{") {
+                depth += 1;
+            } else if (character === "}") {
+                depth -= 1;
+                if (depth === 0) return index + 1;
+            }
+        }
+        return null;
+    }
+
+    private parseToolCall(
+        value: string,
+    ): { name: string; arguments: Record<string, unknown> } | undefined {
+        try {
+            const parsed: unknown = JSON.parse(value.trim());
+            if (
+                !parsed ||
+                typeof parsed !== "object" ||
+                Array.isArray(parsed) ||
+                !("name" in parsed) ||
+                typeof parsed.name !== "string" ||
+                !("arguments" in parsed) ||
+                !parsed.arguments ||
+                typeof parsed.arguments !== "object" ||
+                Array.isArray(parsed.arguments)
+            ) {
+                return undefined;
+            }
+            return {
+                name: parsed.name,
+                arguments: parsed.arguments as Record<string, unknown>,
+            };
+        } catch {
+            return undefined;
+        }
     }
 
     private isNumberedThoughtStart(): boolean {
