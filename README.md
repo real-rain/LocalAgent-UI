@@ -80,9 +80,9 @@ Select a model, start a conversation, and send one of these prompts. When **Conf
 
 | Tool Name (工具名称) | Purpose (作用) | Example Prompt (测试提示词) |
 | :--- | :--- | :--- |
-| **Calculator (计算器)** | 高精度数学运算 | "请调用计算器工具帮我计算 `98765 * 43210` 的精确结果。" |
-| **Weather API (天气查询)** | 真实 Open-Meteo 数据拉取（服务不可用时返回模拟数据） | "请查询北京当前的天气情况，并输出工具返回的数据。" |
-| **Web Sandbox (代码沙盒)** | 前端代码生成与实时渲染 | "用 HTML/CSS/JS 编写一个 3D 翻转卡片，并在沙盒中预览。" |
+| **Calculator** | High-precision math operations | "Use the calculator tool to compute the exact result of `98765 * 43210`." |
+| **Weather API** | Fetch live Open-Meteo data (mock data is returned if the service is unavailable) | "Check the current weather in Beijing and show me the data returned by the tool." |
+| **Web Sandbox** | Generate and render frontend code | "Create a 3D flip card with HTML/CSS/JS and preview it in the sandbox." |
 
 ## 🏗️ Tool Calling Architecture / Flow
 
