@@ -626,7 +626,7 @@ function App() {
     }
   }
 
-  async function handleSendMessage(promptText: string) {
+  async function handleSendMessage(promptText: string, isRetry = false) {
     const content = promptText.trim();
     if (!content) {
       if (isSending || abortControllerRef.current) return;
@@ -689,7 +689,7 @@ function App() {
       assistantMessageId = streamMessageId;
 
       startGeneration(controller, streamMessageId, engineMode, modelName);
-      await addMessage(userMessage);
+      if (!isRetry) await addMessage(userMessage);
       if (controller.signal.aborted) return;
       await addMessage({
         id: streamMessageId,
@@ -750,8 +750,9 @@ function App() {
           .messages
           .filter(
             (message) =>
-              message.id !== streamMessageId ||
-              Boolean(message.content || message.toolCalls?.length),
+              message.status !== "error" &&
+              (message.id !== streamMessageId ||
+                Boolean(message.content || message.toolCalls?.length)),
           )
           .map((message) => ({
             role: message.role,
@@ -915,20 +916,23 @@ function App() {
       }
     } catch (cause) {
       if (!controller?.signal.aborted) {
-        setRequestError(
+        const errorMessage =
           cause instanceof Error
             ? cause.message
-            : t("errors.unknownModelCommunication"),
-        );
-        await setStreamingFailed(assistantMessageId ?? undefined).catch(
-          (failure: unknown) => {
+            : t("errors.unknownModelCommunication");
+        if (assistantMessageId) {
+          try {
+            await setStreamingFailed(assistantMessageId, errorMessage);
+          } catch (failure) {
             setRequestError(
               failure instanceof Error
                 ? failure.message
                 : t("errors.unknownModelCommunication"),
             );
-          },
-        );
+          }
+        } else {
+          setRequestError(errorMessage);
+        }
       }
     } finally {
       if (isRetrievingContext) setKnowledgeStatus(null);
@@ -944,6 +948,24 @@ function App() {
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await handleSendMessage(input);
+  }
+
+  async function handleRetryMessage(messageId: string) {
+    const currentMessages = useChatStore.getState().messages;
+    const messageIndex = currentMessages.findIndex(
+      (message) => message.id === messageId && message.status === "error",
+    );
+    if (messageIndex < 0) return;
+
+    const previousUserMessage = currentMessages
+      .slice(0, messageIndex)
+      .findLast((message) => message.role === "user");
+    if (!previousUserMessage) {
+      setRequestError(t("errors.retryUnavailable"));
+      return;
+    }
+
+    await handleSendMessage(previousUserMessage.content, true);
   }
 
   async function handleDocumentUpload(file: File) {
@@ -1151,6 +1173,11 @@ function App() {
                     <ChatMessageBubble
                       key={message.id}
                       message={message}
+                      onRetry={
+                        message.status === "error"
+                          ? (messageId) => void handleRetryMessage(messageId)
+                          : undefined
+                      }
                       onToolApprove={(toolCallId) =>
                         resolveToolDecision(toolCallId, true)
                       }

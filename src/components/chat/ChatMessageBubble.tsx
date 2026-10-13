@@ -13,7 +13,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import { useTranslation } from "react-i18next";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { AlertTriangle, Check, Copy, ExternalLink, RotateCcw } from "lucide-react";
 import hljs from "highlight.js/lib/common";
 import ThoughtAccordion from "../agent/ThoughtAccordion";
 import ToolCallCard from "../agent/ToolCallCard";
@@ -26,6 +26,7 @@ interface ChatMessageBubbleProps {
     message: Message;
     onToolApprove?: (toolCallId: string) => void;
     onToolReject?: (toolCallId: string) => void;
+    onRetry?: (messageId: string) => void;
 }
 
 interface MarkdownCodeBlock {
@@ -295,6 +296,24 @@ function createMarkdownComponents(
     };
 }
 
+function getErrorMessage(content: string): string {
+    try {
+        const parsed: unknown = JSON.parse(content);
+        if (
+            typeof parsed === "object" &&
+            parsed !== null &&
+            "error" in parsed &&
+            typeof parsed.error === "string"
+        ) {
+            return parsed.error;
+        }
+    } catch {
+        return content;
+    }
+
+    return content;
+}
+
 /**
  * 显示消息生成过程中的实时或最终耗时与吞吐量。
  * @param props 可选包含生成性能数据的消息。
@@ -340,6 +359,7 @@ export function ChatMessageBubble({
     message,
     onToolApprove,
     onToolReject,
+    onRetry,
 }: ChatMessageBubbleProps) {
     const { t } = useTranslation();
     const isAssistant = message.role === "assistant";
@@ -355,7 +375,8 @@ export function ChatMessageBubble({
         !isStreaming &&
         !message.content.trim() &&
         !message.thoughtProcess?.trim() &&
-        !message.toolCalls?.length
+        !message.toolCalls?.length &&
+        message.status !== "error"
     ) {
         return null;
     }
@@ -394,20 +415,56 @@ export function ChatMessageBubble({
                     </p>
                 )}
 
-                <div className="chat-message__content">
-                    <ReactMarkdown
-                        components={markdownComponents}
-                        remarkPlugins={[remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
+                {isAssistant && message.status === "error" ? (
+                    <section
+                        className="mt-3 rounded-lg border border-amber-800/70 bg-amber-950/30 p-4 text-amber-100"
+                        role="alert"
                     >
-                        {message.content}
-                    </ReactMarkdown>
-                    {isAssistant && isStreaming && (
-                        <span className="chat-message__cursor" aria-label="Generating">
-                            {" "}
-                        </span>
-                    )}
-                </div>
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle
+                                className="mt-0.5 size-5 shrink-0 text-amber-400"
+                                aria-hidden="true"
+                            />
+                            <div className="min-w-0">
+                                <h3 className="font-semibold">
+                                    {t("chat.requestFailed")}
+                                </h3>
+                                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-amber-100/90">
+                                    {getErrorMessage(message.content) ||
+                                        t("chat.requestFailed")}
+                                </p>
+                                <p className="mt-2 text-xs text-amber-200/75">
+                                    {t("chat.requestFailedHelp")}
+                                </p>
+                                {onRetry && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onRetry(message.id)}
+                                        className="mt-3 inline-flex items-center gap-2 rounded-md border border-amber-700/80 bg-amber-900/40 px-3 py-1.5 text-sm font-medium text-amber-100 transition-colors hover:bg-amber-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                                    >
+                                        <RotateCcw className="size-4" aria-hidden="true" />
+                                        {t("common.retry")}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                ) : (
+                    <div className="chat-message__content">
+                        <ReactMarkdown
+                            components={markdownComponents}
+                            remarkPlugins={[remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                        >
+                            {message.content}
+                        </ReactMarkdown>
+                        {isAssistant && isStreaming && (
+                            <span className="chat-message__cursor" aria-label="Generating">
+                                {" "}
+                            </span>
+                        )}
+                    </div>
+                )}
                 {isAssistant && <MessagePerformanceFooter message={message} />}
             </article>
         </div>

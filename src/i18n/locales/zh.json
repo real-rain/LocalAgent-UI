@@ -124,7 +124,10 @@
     "mermaidDiagram": "Mermaid 流程图",
     "renderingDiagram": "正在渲染流程图…",
     "mermaidRenderError": "无法渲染 Mermaid 流程图",
-    "interruptedResponse": "此回复因页面关闭或刷新而中断；已保留已生成的部分内容。"
+    "interruptedResponse": "此回复因页面关闭或刷新而中断；已保留已生成的部分内容。",
+    "requestFailed": "请求失败",
+    "requestFailedHelp": "请检查模型服务和权限配置。使用 Ollama Cloud 时，可在 .env.local 中设置 VITE_OLLAMA_API_KEY 后重启应用；该密钥会随前端请求发送，请仅用于可信环境。",
+    "retryUnavailable": "无法找到这条失败请求对应的用户消息，请重新输入后再试。"
   },
   "rag": {
     "upload": "添加 PDF 或 TXT 文档",

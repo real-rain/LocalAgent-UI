@@ -64,7 +64,7 @@ interface ChatState {
   stopGeneration: () => Promise<void>;
   appendStreamChunk: (id: string, chunk: StreamChunk) => void;
   setStreamingComplete: (id?: string) => Promise<void>;
-  setStreamingFailed: (id?: string) => Promise<void>;
+  setStreamingFailed: (id?: string, errorMessage?: string) => Promise<void>;
   updateTitleFromFirstMessage: (
     sessionId: string,
     inputPrompt: string,
@@ -636,7 +636,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
    * @param id 可选的消息 ID，用于拒绝过期的失败事件。
    * @returns 失败的消息持久化后兑现的 Promise。
    */
-  setStreamingFailed: async (id) => {
+  setStreamingFailed: async (id, errorMessage) => {
     if (id && activeStreamId !== id) return;
     flushPendingStreamChunks();
     const message = get().messages.findLast(
@@ -658,6 +658,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const failedMessage: Message = {
       ...message,
+      ...(errorMessage ? { content: errorMessage } : {}),
       status: "error",
       performance: message.performance
         ? { ...message.performance, endTime: Date.now() }

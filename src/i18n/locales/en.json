@@ -124,7 +124,10 @@
     "mermaidDiagram": "Mermaid diagram",
     "renderingDiagram": "Rendering diagram…",
     "mermaidRenderError": "Unable to render Mermaid diagram",
-    "interruptedResponse": "This response was interrupted by a page reload or close. The generated portion has been saved."
+    "interruptedResponse": "This response was interrupted by a page reload or close. The generated portion has been saved.",
+    "requestFailed": "Request failed",
+    "requestFailedHelp": "Check the model service and permissions. For Ollama Cloud, set VITE_OLLAMA_API_KEY in .env.local and restart the app. This key is sent by the frontend, so only use it in a trusted environment.",
+    "retryUnavailable": "Could not find the user message for this failed request. Please enter it again."
   },
   "rag": {
     "upload": "Add a PDF or TXT document",

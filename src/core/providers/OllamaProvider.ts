@@ -22,11 +22,35 @@ interface OllamaStreamResponse {
   error?: string;
 }
 
+function getErrorDetail(body: string): string {
+  const trimmedBody = body.trim();
+  if (!trimmedBody) return "";
+
+  try {
+    const parsed: unknown = JSON.parse(trimmedBody);
+    if (typeof parsed === "object" && parsed !== null) {
+      const error = "error" in parsed ? parsed.error : undefined;
+      const message = "message" in parsed ? parsed.message : undefined;
+      if (typeof error === "string") return error;
+      if (typeof message === "string") return message;
+    }
+  } catch {
+    return trimmedBody;
+  }
+
+  return trimmedBody;
+}
+
 export class OllamaProvider implements ChatProvider {
   private readonly baseUrl: string;
+  private readonly apiKey: string | undefined;
 
-  constructor(baseUrl = "http://localhost:11434") {
+  constructor(
+    baseUrl = "http://localhost:11434",
+    apiKey = import.meta.env.VITE_OLLAMA_API_KEY,
+  ) {
     this.baseUrl = baseUrl;
+    this.apiKey = apiKey?.trim() || undefined;
   }
 
   /**
@@ -45,7 +69,10 @@ export class OllamaProvider implements ChatProvider {
   ): AsyncGenerator<StreamChunk> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+      },
       body: JSON.stringify({
         model: modelId,
         messages: [
@@ -62,9 +89,17 @@ export class OllamaProvider implements ChatProvider {
     });
 
     if (!response.ok) {
-      const detail = await response.text();
+      const detail = getErrorDetail(await response.text());
+      if (response.status === 401) {
+        throw new Error(
+          "401 Unauthorized: Ollama 接口鉴权失败，请检查模型权限或 API Key 配置。",
+        );
+      }
+
       throw new Error(
-        detail || `Ollama 请求失败（HTTP ${response.status}）。请确认 Ollama 服务正在运行。`,
+        `${response.status} ${response.statusText || "Ollama 请求失败"}: ${
+          detail || "请确认 Ollama 服务正在运行且模型配置正确。"
+        }`,
       );
     }
 
