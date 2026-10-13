@@ -102,9 +102,10 @@ export class WebLLMProvider implements ChatProvider {
 
         const engine = this.engine;
         const parser = new StreamParser();
-        const webLLMSystemPrompt = systemPrompt.includes("<context>")
-            ? `${systemPrompt.trim()}\n\nPlease strictly answer the user's question in Chinese based on the provided context.`
-            : systemPrompt;
+        const isRagOrReasoningRequest =
+            messages.some(({ role, content }) =>
+                role === "user" && content.includes("背景知识 / Context:"),
+            ) || /deepseek[-_ ]?r1/i.test(modelId);
         let interruptPromise: Promise<void> | null = null;
         const interrupt = () => {
             if (!interruptPromise) {
@@ -123,7 +124,7 @@ export class WebLLMProvider implements ChatProvider {
 
             const stream = await engine.chat.completions.create({
                 messages: [
-                    { role: "system", content: webLLMSystemPrompt },
+                    { role: "system", content: systemPrompt },
                     ...messages.map(({ role, content }) => ({
                         role: role === "tool" ? "user" as const : role,
                         content:
@@ -132,8 +133,9 @@ export class WebLLMProvider implements ChatProvider {
                                 : content,
                     })),
                 ],
-                temperature: 0.6,
-                top_p: 0.9,
+                temperature: isRagOrReasoningRequest ? 0.3 : 0.6,
+                top_p: isRagOrReasoningRequest ? 0.85 : 0.9,
+                ...(isRagOrReasoningRequest ? { max_tokens: 2048 } : {}),
                 stop: ["</think>", "<|im_end|>", "<|endoftext|>"],
                 stream: true,
             });

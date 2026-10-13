@@ -39,6 +39,67 @@ describe("StreamParser", () => {
         ]);
     });
 
+    it("closes a thought block after a sentence repeats more than three times", () => {
+        const parser = new StreamParser();
+        const chunks = [
+            ...parser.parse(
+                "<think>user's question is in Chinese.\n".repeat(4),
+            ),
+            ...parser.parse("这是一条简短回答。"),
+            ...parser.flush(),
+        ];
+
+        expect(chunks).toContainEqual({
+            type: "text_delta",
+            content: "\n\n",
+        });
+        expect(chunks.at(-1)).toEqual({
+            type: "text_delta",
+            content: "这是一条简短回答。",
+        });
+        expect(chunks.filter((chunk) => chunk.type === "thought_delta")).toHaveLength(1);
+    });
+
+    it("closes a thought block when an unpunctuated phrase repeats", () => {
+        const parser = new StreamParser();
+        const chunks = [
+            ...parser.parse(
+                `<think>${"user's question is in Chinese ".repeat(4)}`,
+            ),
+            ...parser.parse("回答"),
+            ...parser.flush(),
+        ];
+
+        expect(chunks).toContainEqual({
+            type: "text_delta",
+            content: "\n\n",
+        });
+        expect(chunks.at(-1)).toEqual({ type: "text_delta", content: "回答" });
+    });
+
+    it("limits thought output to 1200 characters and switches to answer mode", () => {
+        const parser = new StreamParser();
+        const chunks = [
+            ...parser.parse(`<think>${"a".repeat(1201)}`),
+            ...parser.parse("回答"),
+            ...parser.flush(),
+        ];
+        const thoughtLength = chunks
+            .reduce(
+                (length, chunk) =>
+                    length +
+                    (chunk.type === "thought_delta" ? chunk.content.length : 0),
+                0,
+            );
+
+        expect(thoughtLength).toBe(1200);
+        expect(chunks).toContainEqual({
+            type: "text_delta",
+            content: "\n\n",
+        });
+        expect(chunks.at(-1)).toEqual({ type: "text_delta", content: "回答" });
+    });
+
     it("treats all output after the first thought end marker as answer text", () => {
         const parser = new StreamParser();
         const chunks = [

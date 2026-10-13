@@ -30,6 +30,8 @@ const TOOL_CALL_END = "</tool_call>";
 let toolCallSequence = 0;
 const THOUGHT_LIST_START =
     /^(?:分析|思考|梳理|理解|检查|评估|推演|analysis\b|analy[sz]e\b|thinking\b|think\b|review\b|consider\b|understand\b|inspect\b|identify\b)/i;
+const MAX_THOUGHT_CHARACTERS = 1200;
+const REPEATED_THOUGHT_LIMIT = 3;
 
 /**
  * 增量解析模型输出，并保留被拆分到多个数据块中的标记。
@@ -42,6 +44,9 @@ export class StreamParser {
     private hasEmittedText = false;
     private consecutiveThinkEndMarkers = 0;
     private stopRequested = false;
+    private thoughtCharacterCount = 0;
+    private thoughtText = "";
+    private thoughtLoopBroken = false;
 
     get shouldStop(): boolean {
         return this.stopRequested;
@@ -64,7 +69,20 @@ export class StreamParser {
      * @returns 有文本时返回推理增量，否则返回空数组。
      */
     parseReasoning(value: string): StreamChunk[] {
-        return value ? [{ type: "thought_delta", content: value }] : [];
+        if (!value || this.thoughtLoopBroken) return [];
+
+        const availableCharacters = Math.max(
+            0,
+            MAX_THOUGHT_CHARACTERS - this.thoughtCharacterCount,
+        );
+        const thought = value.slice(0, availableCharacters);
+        const shouldBreak =
+            value.length > availableCharacters ||
+            this.recordThought(thought);
+        const chunks: StreamChunk[] = [];
+        if (thought) chunks.push({ type: "thought_delta", content: thought });
+        if (shouldBreak) this.closeThoughtLoop(chunks);
+        return chunks;
     }
 
     /**
@@ -400,8 +418,67 @@ export class StreamParser {
         if (!cleanedContent) return;
         this.consecutiveThinkEndMarkers = 0;
         const type = this.inThinkBlock ? "thought_delta" : "text_delta";
+        if (type === "thought_delta") {
+            const availableCharacters = Math.max(
+                0,
+                MAX_THOUGHT_CHARACTERS - this.thoughtCharacterCount,
+            );
+            const thought = cleanedContent.slice(0, availableCharacters);
+            const shouldBreak =
+                cleanedContent.length > availableCharacters ||
+                this.recordThought(thought);
+            if (thought) chunks.push({ type, content: thought });
+            if (shouldBreak) this.closeThoughtLoop(chunks);
+            return;
+        }
         chunks.push({ type, content: cleanedContent });
         if (type === "text_delta") this.hasEmittedText = true;
+    }
+
+    private recordThought(content: string): boolean {
+        if (!content) return false;
+        this.thoughtCharacterCount += content.length;
+        this.thoughtText = (this.thoughtText + content).slice(
+            -MAX_THOUGHT_CHARACTERS,
+        );
+
+        const sentenceCounts = new Map<string, number>();
+        for (const sentence of this.thoughtText.split(/[.!?。！？\n\r]+/)) {
+            const normalized = sentence.trim().replace(/\s+/g, " ").toLowerCase();
+            if (normalized.length < 12) continue;
+            const count = (sentenceCounts.get(normalized) ?? 0) + 1;
+            if (count > REPEATED_THOUGHT_LIMIT) return true;
+            sentenceCounts.set(normalized, count);
+        }
+
+        const tokens =
+            this.thoughtText.match(/[\u3400-\u9fff]|[\p{L}\p{N}']+/gu) ?? [];
+        const maxPhraseLength = Math.min(12, Math.floor(tokens.length / 4));
+        for (let phraseLength = 4; phraseLength <= maxPhraseLength; phraseLength += 1) {
+            const phraseCounts = new Map<string, number>();
+            for (
+                let index = 0;
+                index <= tokens.length - phraseLength;
+                index += 1
+            ) {
+                const phrase = tokens
+                    .slice(index, index + phraseLength)
+                    .join(" ")
+                    .toLowerCase();
+                const count = (phraseCounts.get(phrase) ?? 0) + 1;
+                if (count > REPEATED_THOUGHT_LIMIT) return true;
+                phraseCounts.set(phrase, count);
+            }
+        }
+        return false;
+    }
+
+    private closeThoughtLoop(chunks: StreamChunk[]): void {
+        this.inThinkBlock = false;
+        this.thoughtBlockClosed = true;
+        this.thoughtLoopBroken = true;
+        chunks.push({ type: "text_delta", content: "\n\n" });
+        this.hasEmittedText = true;
     }
 
     private recordThoughtEnd(marker: string): void {
