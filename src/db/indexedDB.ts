@@ -63,6 +63,11 @@ export interface Document {
     size: number;
 }
 
+/** 文档元数据以及其向量切块数量。 */
+export interface DocumentWithChunkCount extends Document {
+    chunkCount: number;
+}
+
 /**
  * 文档拆分后的文本片段及其语义特征向量。
  *
@@ -117,6 +122,47 @@ export class LocalAgentDatabase extends Dexie {
 
 /** 供持久化辅助函数共用的 IndexedDB 数据库实例。 */
 export const db = new LocalAgentDatabase();
+
+/**
+ * 加载所有本地知识库文档，并汇总每份文档的切块数量。
+ * @returns 按上传时间从新到旧排列的文档及切块数量。
+ */
+export async function getDocuments(): Promise<DocumentWithChunkCount[]> {
+    const [documents, chunks] = await Promise.all([
+        db.documents.toArray(),
+        db.chunks.toArray(),
+    ]);
+    const chunkCounts = new Map<string, number>();
+    for (const chunk of chunks) {
+        chunkCounts.set(chunk.docId, (chunkCounts.get(chunk.docId) ?? 0) + 1);
+    }
+
+    return documents
+        .map((document) => ({
+            ...document,
+            chunkCount: chunkCounts.get(document.id) ?? 0,
+        }))
+        .sort((left, right) => right.uploadTime - left.uploadTime);
+}
+
+/**
+ * 在同一事务中删除文档元数据及其全部向量切块。
+ * @param docId 要删除的文档 ID。
+ */
+export async function deleteDocument(docId: string): Promise<void> {
+    await db.transaction("rw", db.documents, db.chunks, async () => {
+        await db.chunks.where("docId").equals(docId).delete();
+        await db.documents.delete(docId);
+    });
+}
+
+/** 在同一事务中清空本地知识库文档及全部向量切块。 */
+export async function clearKnowledgeBase(): Promise<void> {
+    await db.transaction("rw", db.documents, db.chunks, async () => {
+        await db.chunks.clear();
+        await db.documents.clear();
+    });
+}
 
 /**
  * 创建聊天会话，并为未指定的设置应用默认值后持久化。

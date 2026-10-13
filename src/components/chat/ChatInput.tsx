@@ -15,7 +15,7 @@ import {
   type FormEvent,
   type RefObject,
 } from "react";
-import { Paperclip, Send } from "lucide-react";
+import { BookOpen, Paperclip, Send } from "lucide-react";
 
 /**
  * 聊天输入区域当前展示的本地知识库处理状态。
@@ -69,6 +69,11 @@ interface ChatInputProps {
   uploadLabel: string;
   /** 上传按钮的提示文案。 */
   uploadTitle: string;
+  /** 本地知识库文档数量，用于显示入口角标。 */
+  documentCount: number;
+  /** 知识库管理按钮的无障碍名称和提示文案。 */
+  knowledgeBaseLabel: string;
+  knowledgeBaseTitle: string;
   /** 文本输入框的无障碍标签。 */
   messageLabel: string;
   /** 发送按钮的无障碍名称与提示文案。 */
@@ -79,6 +84,8 @@ interface ChatInputProps {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   /** 选择 PDF/TXT 文件后调用的回调。 */
   onUploadFile: (file: File) => void;
+  /** 打开本地知识库管理面板。 */
+  onOpenKnowledgeBase: () => void;
 }
 
 /**
@@ -98,11 +105,15 @@ export function ChatInput({
   knowledgeStatusText,
   uploadLabel,
   uploadTitle,
+  documentCount,
+  knowledgeBaseLabel,
+  knowledgeBaseTitle,
   messageLabel,
   sendLabel,
   onChange,
   onSubmit,
   onUploadFile,
+  onOpenKnowledgeBase,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +152,20 @@ export function ChatInput({
           className="grid size-10 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Paperclip className="size-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          aria-label={knowledgeBaseLabel}
+          title={knowledgeBaseTitle}
+          onClick={onOpenKnowledgeBase}
+          className="relative grid size-10 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+        >
+          <BookOpen className="size-4" aria-hidden="true" />
+          {documentCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border border-zinc-950 bg-violet-500 px-1 text-[9px] font-semibold leading-none text-white">
+              {documentCount}
+            </span>
+          )}
         </button>
         <label className="sr-only" htmlFor="chat-input">
           {messageLabel}

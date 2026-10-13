@@ -136,7 +136,28 @@
     "embedding": "Generating embeddings…",
     "embeddingProgress": "Generating embeddings… {{completed}}/{{total}}",
     "retrieving": "Searching the local knowledge base…",
-    "ready": "Knowledge base ready"
+    "ready": "Knowledge base ready",
+    "manager": {
+      "open": "Manage local knowledge base",
+      "title": "Local knowledge base",
+      "summary": "📚 {{documents}} documents loaded · {{chunks}} vector chunks",
+      "clear": "Clear knowledge base",
+      "confirmClear": "Confirm clearing knowledge base",
+      "confirmClearMessage": "This permanently deletes all documents and vector chunks and cannot be undone.",
+      "confirm": "Clear everything",
+      "clearing": "Clearing…",
+      "empty": "The local vector database is empty. Click the 📎 button below to upload documents and enable RAG retrieval.",
+      "chunkCount": "{{count}} chunks",
+      "delete": "Delete document",
+      "deleteDocument": "Delete document {{title}}",
+      "chunkNumber": "Chunk {{number}}",
+      "vectorLength": "{{length}}-dim",
+      "noChunks": "This document has no chunks.",
+      "loadFailed": "Unable to load the local knowledge base.",
+      "chunksFailed": "Unable to load document chunks.",
+      "deleteFailed": "Unable to delete the document.",
+      "clearFailed": "Unable to clear the knowledge base."
+    }
   },
   "prompts": {
     "label": "System prompt preset",

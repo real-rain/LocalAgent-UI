@@ -27,6 +27,7 @@ import ChatMessageBubble from "./components/chat/ChatMessageBubble";
 import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
 import { PromptPresetSelector } from "./components/chat/PromptPresetSelector";
 import { ChatInput, type KnowledgeStatus } from "./components/chat/ChatInput";
+import { KnowledgeBaseDrawer } from "./components/chat/KnowledgeBaseDrawer";
 import { WebGPULoaderCard } from "./components/chat/WebGPULoaderCard";
 import AppSidebar from "./components/layout/AppSidebar";
 import CodeArtifactBox from "./components/agent/CodeArtifactBox";
@@ -44,6 +45,7 @@ import {
   createSessionBackup,
   db,
   deleteUserPromptPreset,
+  getDocuments,
   getMessagesBySession,
   getUserPromptPresets,
   importSessionBackup,
@@ -170,6 +172,9 @@ function App() {
   const [input, setInput] = useState("");
   const [knowledgeStatus, setKnowledgeStatus] =
     useState<KnowledgeStatus | null>(null);
+  const [knowledgeBaseDocumentCount, setKnowledgeBaseDocumentCount] =
+    useState(0);
+  const [isKnowledgeBaseOpen, setIsKnowledgeBaseOpen] = useState(false);
   const [embeddingProgress, setEmbeddingProgress] = useState<string | null>(
     null,
   );
@@ -201,6 +206,19 @@ function App() {
   const isCreatingSessionRef = useRef(false);
   const webGPUInitializationRef = useRef<Promise<void> | null>(null);
 
+  const refreshKnowledgeBaseStats = useCallback(async () => {
+    try {
+      const documents = await getDocuments();
+      setKnowledgeBaseDocumentCount(documents.length);
+    } catch (cause) {
+      setRequestError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to load the local knowledge base.",
+      );
+    }
+  }, []);
+
   const resolveToolDecision = useCallback(
     (toolCallId: string, approved: boolean) => {
       toolDecisionResolvers.current.get(toolCallId)?.(approved);
@@ -230,6 +248,26 @@ function App() {
     const timeout = window.setTimeout(() => setCopyToast(null), 2200);
     return () => window.clearTimeout(timeout);
   }, [copyToast]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    void getDocuments()
+      .then((documents) => {
+        if (isCurrent) setKnowledgeBaseDocumentCount(documents.length);
+      })
+      .catch((cause: unknown) => {
+        if (isCurrent) {
+          setRequestError(
+            cause instanceof Error
+              ? cause.message
+              : "Unable to load the local knowledge base.",
+          );
+        }
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   async function handleCopyContact() {
     try {
@@ -996,6 +1034,7 @@ ${retrievedContext.join("\n\n")}
       });
       setKnowledgeStatus("ready");
       setEmbeddingProgress(null);
+      await refreshKnowledgeBaseStats();
     } catch (cause) {
       setKnowledgeStatus(null);
       setEmbeddingProgress(null);
@@ -1246,6 +1285,10 @@ ${retrievedContext.join("\n\n")}
             onChange={setInput}
             onSubmit={handleSend}
             onUploadFile={(file) => void handleDocumentUpload(file)}
+            documentCount={knowledgeBaseDocumentCount}
+            knowledgeBaseLabel={t("rag.manager.open")}
+            knowledgeBaseTitle={t("rag.manager.open")}
+            onOpenKnowledgeBase={() => setIsKnowledgeBaseOpen(true)}
             placeholder={
               !modelName
                 ? t("chat.selectModelPlaceholder")
@@ -1301,6 +1344,11 @@ ${retrievedContext.join("\n\n")}
           </p>
         </footer>
       </section>
+      <KnowledgeBaseDrawer
+        isOpen={isKnowledgeBaseOpen}
+        onClose={() => setIsKnowledgeBaseOpen(false)}
+        onKnowledgeBaseChange={() => void refreshKnowledgeBaseStats()}
+      />
       {activeArtifact && (
         <aside
           aria-label={t("chat.artifactView")}

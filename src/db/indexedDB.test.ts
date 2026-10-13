@@ -14,8 +14,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createSessionBackup,
     createSession,
+    clearKnowledgeBase,
     db,
+    deleteDocument,
     deleteUserPromptPreset,
+    getDocuments,
     getUserPromptPresets,
     importSessionBackup,
     recoverInterruptedMessages,
@@ -128,6 +131,45 @@ describe("local database workflows", () => {
         expect(await db.chunks.where("docId").equals(document.id).toArray()).toEqual([
             chunk,
         ]);
+    });
+
+    it("lists documents with chunk counts and deletes or clears related vectors", async () => {
+        await db.documents.bulkAdd([
+            { id: "document-a", title: "a.txt", uploadTime: 2, size: 1200 },
+            { id: "document-b", title: "b.txt", uploadTime: 1, size: 20 },
+        ]);
+        await db.chunks.bulkAdd([
+            { id: "chunk-a1", docId: "document-a", text: "first", embedding: [1, 0] },
+            { id: "chunk-a2", docId: "document-a", text: "second", embedding: [0, 1] },
+            { id: "chunk-b1", docId: "document-b", text: "third", embedding: [1, 1] },
+        ]);
+
+        expect(await getDocuments()).toEqual([
+            {
+                id: "document-a",
+                title: "a.txt",
+                uploadTime: 2,
+                size: 1200,
+                chunkCount: 2,
+            },
+            {
+                id: "document-b",
+                title: "b.txt",
+                uploadTime: 1,
+                size: 20,
+                chunkCount: 1,
+            },
+        ]);
+
+        await deleteDocument("document-a");
+        expect(await db.documents.toArray()).toHaveLength(1);
+        expect(await db.chunks.toArray()).toEqual([
+            { id: "chunk-b1", docId: "document-b", text: "third", embedding: [1, 1] },
+        ]);
+
+        await clearKnowledgeBase();
+        expect(await db.documents.count()).toBe(0);
+        expect(await db.chunks.count()).toBe(0);
     });
 
     it("persists streamed content while generation is still running", async () => {

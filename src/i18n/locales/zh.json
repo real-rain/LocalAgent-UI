@@ -136,7 +136,28 @@
     "embedding": "正在生成向量…",
     "embeddingProgress": "正在生成向量… {{completed}}/{{total}}",
     "retrieving": "正在检索本地知识库…",
-    "ready": "知识库就绪"
+    "ready": "知识库就绪",
+    "manager": {
+      "open": "管理本地知识库",
+      "title": "本地知识库",
+      "summary": "📚 已加载 {{documents}} 个文档 · 共有 {{chunks}} 个向量切块",
+      "clear": "清空知识库",
+      "confirmClear": "确认清空知识库",
+      "confirmClearMessage": "此操作将永久删除所有文档及向量切块，无法撤销。",
+      "confirm": "确认清空",
+      "clearing": "正在清空…",
+      "empty": "当前本地向量库为空，点击下方 📎 按钮上传文档以启用 RAG 检索。",
+      "chunkCount": "{{count}} 个切块",
+      "delete": "删除文档",
+      "deleteDocument": "删除文档 {{title}}",
+      "chunkNumber": "切块 {{number}}",
+      "vectorLength": "{{length}}-dim",
+      "noChunks": "该文档尚无切块。",
+      "loadFailed": "无法加载本地知识库。",
+      "chunksFailed": "无法加载文档切块。",
+      "deleteFailed": "无法删除文档。",
+      "clearFailed": "无法清空知识库。"
+    }
   },
   "prompts": {
     "label": "系统提示词预设",
