@@ -107,7 +107,7 @@ export function PromptPresetSelector({
 
     return (
         <>
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex items-center gap-2 whitespace-nowrap shrink-0">
                 <label className="sr-only" htmlFor="prompt-preset">
                     {t("prompts.label")}
                 </label>
@@ -116,7 +116,7 @@ export function PromptPresetSelector({
                     value={presetId}
                     disabled={disabled}
                     onChange={(event) => onPresetChange(event.target.value)}
-                    className="max-w-36 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
+                    className="max-w-36 shrink-0 whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
                 >
                     {[...PROMPT_PRESETS, ...presets.filter((item) => !item.builtIn)].map(
                         (preset) => (
@@ -133,7 +133,7 @@ export function PromptPresetSelector({
                         setIsManaging(true);
                         beginCreate();
                     }}
-                    className="shrink-0 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
+                    className="flex items-center gap-2 whitespace-nowrap shrink-0 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
                 >
                     {t("prompts.manage")}
                 </button>

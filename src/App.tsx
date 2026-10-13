@@ -26,6 +26,7 @@ import logo from "./assets/logo.svg";
 import ChatMessageBubble from "./components/chat/ChatMessageBubble";
 import { ModelSelectorPopover } from "./components/chat/ModelSelectorPopover";
 import { PromptPresetSelector } from "./components/chat/PromptPresetSelector";
+import { ToolConfirmToggle } from "./components/chat/ToolConfirmToggle";
 import { ChatInput, type KnowledgeStatus } from "./components/chat/ChatInput";
 import { KnowledgeBaseDrawer } from "./components/chat/KnowledgeBaseDrawer";
 import { WebGPULoaderCard } from "./components/chat/WebGPULoaderCard";
@@ -1108,7 +1109,7 @@ ${retrievedContext.join("\n\n")}
             disabled={isStreaming}
             className="min-w-0 max-w-[min(70vw,40rem)] justify-self-center border-0 p-0"
           >
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 whitespace-nowrap shrink-0">
               <ModelSelectorPopover
                 selectedEngine={engineMode}
                 selectedModel={modelName}
@@ -1127,20 +1128,11 @@ ${retrievedContext.join("\n\n")}
                 onSavePreset={handleSavePromptPreset}
                 onDeletePreset={handleDeletePromptPreset}
               />
-              <label className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={requireToolConfirmation}
-                  disabled={isStreaming}
-                  onChange={(event) =>
-                    setRequireToolConfirmation(event.currentTarget.checked)
-                  }
-                  className="accent-violet-500"
-                />
-                {i18n.resolvedLanguage?.startsWith("zh")
-                  ? "工具执行前确认"
-                  : "Confirm tool execution"}
-              </label>
+              <ToolConfirmToggle
+                checked={requireToolConfirmation}
+                disabled={isStreaming}
+                onChange={setRequireToolConfirmation}
+              />
             </div>
           </fieldset>
           <button

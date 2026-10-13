@@ -202,7 +202,10 @@ export function ModelSelectorPopover({
     };
 
     return (
-        <div className="relative inline-block max-w-full" ref={popoverRef}>
+        <div
+            className="relative flex max-w-full items-center gap-2 whitespace-nowrap shrink-0"
+            ref={popoverRef}
+        >
             <button
                 ref={triggerRef}
                 type="button"
@@ -218,7 +221,7 @@ export function ModelSelectorPopover({
                     }
                     setIsOpen(!isOpen);
                 }}
-                className="flex max-w-full items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex max-w-full shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {!selectedModel || selectedIsOffline ? (
                     <span
