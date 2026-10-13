@@ -126,6 +126,15 @@
     "mermaidRenderError": "无法渲染 Mermaid 流程图",
     "interruptedResponse": "此回复因页面关闭或刷新而中断；已保留已生成的部分内容。"
   },
+  "rag": {
+    "upload": "添加 PDF 或 TXT 文档",
+    "uploadTitle": "将 PDF 或 TXT 添加到本地知识库",
+    "parsing": "正在解析文档…",
+    "embedding": "正在生成向量…",
+    "embeddingProgress": "正在生成向量… {{completed}}/{{total}}",
+    "retrieving": "正在检索本地知识库…",
+    "ready": "知识库就绪"
+  },
   "prompts": {
     "label": "系统提示词预设",
     "manage": "管理预设",
@@ -161,7 +170,8 @@
     "webgpuUnavailable": "WebGPU 引擎初始化后不可用。",
     "unknownModelCommunication": "与模型通信时发生未知错误。",
     "saveSessionSettings": "无法保存会话设置。",
-    "persistStream": "无法将回复保存到本地：{{detail}}"
+    "persistStream": "无法将回复保存到本地：{{detail}}",
+    "indexDocument": "无法处理所选文档。"
   },
   "modelSelector": {
     "localEndpoints": "本地服务",

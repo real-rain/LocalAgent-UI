@@ -105,6 +105,31 @@ describe("local database workflows", () => {
         });
     });
 
+    it("persists documents and their embedding chunks", async () => {
+        const document = {
+            id: "document-1",
+            title: "notes.txt",
+            uploadTime: Date.now(),
+            size: 12,
+        };
+        const chunk = {
+            id: "chunk-1",
+            docId: document.id,
+            text: "Local knowledge",
+            embedding: [0.25, 0.75],
+        };
+
+        await db.transaction("rw", db.documents, db.chunks, async () => {
+            await db.documents.add(document);
+            await db.chunks.add(chunk);
+        });
+
+        expect(await db.documents.get(document.id)).toEqual(document);
+        expect(await db.chunks.where("docId").equals(document.id).toArray()).toEqual([
+            chunk,
+        ]);
+    });
+
     it("persists streamed content while generation is still running", async () => {
         vi.stubGlobal("window", {
             setTimeout,

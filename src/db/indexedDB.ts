@@ -44,11 +44,53 @@ export interface SessionImportResult {
     promptPresetCount: number;
 }
 
-/** 用于会话、消息与用户自定义提示词预设的 Dexie 数据结构。 */
+/**
+ * 本地知识库中文档的基本元数据。
+ *
+ * @property id 文档记录的唯一标识。
+ * @property title 上传文件的名称。
+ * @property uploadTime 文档导入时间的 Unix 毫秒时间戳。
+ * @property size 原始文件的字节数。
+ */
+export interface Document {
+    /** 文档记录的唯一标识。 */
+    id: string;
+    /** 上传文件的名称。 */
+    title: string;
+    /** 文档导入时间的 Unix 毫秒时间戳。 */
+    uploadTime: number;
+    /** 原始文件大小，单位为字节。 */
+    size: number;
+}
+
+/**
+ * 文档拆分后的文本片段及其语义特征向量。
+ *
+ * @property id 切块记录的唯一标识。
+ * @property docId 所属文档的唯一标识，对应 {@link Document.id}。
+ * @property text 切块中保存的原始文本内容。
+ * @property embedding 由特征提取模型生成的数值特征向量数组。
+ */
+export interface DocumentChunk {
+    /** 切块记录的唯一标识。 */
+    id: string;
+    /** 所属文档的唯一标识，对应 {@link Document.id}。 */
+    docId: string;
+    /** 切块中保存的原始文本内容。 */
+    text: string;
+    /** 由特征提取模型生成的数值特征向量数组。 */
+    embedding: number[];
+}
+
+/** 用于会话、消息、文档与用户自定义提示词预设的 Dexie 数据结构。 */
 export class LocalAgentDatabase extends Dexie {
     sessions!: Table<Session, string>;
     messages!: Table<Message, string>;
     promptPresets!: Table<PromptPreset, string>;
+    /** 已导入文档的元数据表。 */
+    documents!: Table<Document, string>;
+    /** 文档切块与向量数据表。 */
+    chunks!: Table<DocumentChunk, string>;
 
     constructor() {
         super("LocalAgentDatabase");
@@ -61,6 +103,14 @@ export class LocalAgentDatabase extends Dexie {
             sessions: "id, createdAt, updatedAt, presetId",
             messages: "id, sessionId, createdAt, status",
             promptPresets: "id",
+        });
+        // 保留既有会话表结构，并为本地 RAG 新增文档与切块表。
+        this.version(3).stores({
+            sessions: "id, createdAt, updatedAt, presetId",
+            messages: "id, sessionId, createdAt, status",
+            promptPresets: "id",
+            documents: "id, title, uploadTime",
+            chunks: "id, docId",
         });
     }
 }

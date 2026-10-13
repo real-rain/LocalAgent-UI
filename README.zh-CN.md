@@ -41,6 +41,7 @@
 * **🔌 混合式模型提供方架构**：
   * **浏览器内 WebGPU**：通过 WebWorker 中的 `@mlc-ai/web-llm` 运行完全本地、无需后端的 LLM。
   * **Ollama REST API**：连接本地 Ollama 接口，支持动态健康检查和已下载模型的自动发现。
+* **📚 Local-First RAG 本地知识库**：导入 PDF 或 TXT 后，在浏览器中提取文本并按重叠滑动窗口切块；通过 Web Worker 使用 `Xenova/bge-small-zh-v1.5` 生成向量。文档和向量保存在 IndexedDB，对话发送前会检索最相关的 3 个片段并注入系统提示词，Ollama 与 WebGPU 共用此流程。Embedding 模型首次使用时会下载并由 Transformers.js 缓存。
 * **🎭 角色预设与会话配置**：内置代码助手、翻译和自定义 Agent 提示词；支持创建、编辑、删除并跨会话复用自定义预设。模型、引擎及提示词选择均按会话保存在 IndexedDB。
 * **📦 会话备份与恢复**：一键导出包含所有会话、聊天记录及自定义提示词预设的 JSON 完整备份；导入时追加记录，不覆盖当前浏览器数据，并兼容导入单会话 JSON 文件。
 * **📝 高清 Markdown**：代码语法高亮、KaTeX 数学公式和 Mermaid 流程图均在浏览器本地渲染。
