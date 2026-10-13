@@ -36,9 +36,16 @@ const THOUGHT_LIST_START =
  */
 export class StreamParser {
     private inThinkBlock = false;
+    private thoughtBlockClosed = false;
     private inToolCallBlock = false;
     private buffer = "";
     private hasEmittedText = false;
+    private consecutiveThinkEndMarkers = 0;
+    private stopRequested = false;
+
+    get shouldStop(): boolean {
+        return this.stopRequested;
+    }
 
     /**
      * 接收可见输出文本，并发出所有可安全分类的数据块。
@@ -46,7 +53,7 @@ export class StreamParser {
      * @returns 解析后的推理内容与可见文本增量。
      */
     parse(value: string): StreamChunk[] {
-        if (!value) return [];
+        if (!value || this.stopRequested) return [];
         this.buffer += value;
         return this.drain(false);
     }
@@ -151,11 +158,19 @@ export class StreamParser {
                     normalizedBuffer,
                 );
                 if (endMarker) {
-                    this.pushChunk(chunks, this.buffer.slice(0, endMarker.index));
+                    const thought = this.buffer.slice(0, endMarker.index);
+                    this.pushChunk(chunks, thought);
                     this.buffer = this.buffer.slice(
                         endMarker.index + endMarker.marker.length,
                     );
                     this.inThinkBlock = false;
+                    this.thoughtBlockClosed = true;
+                    if (thought) this.consecutiveThinkEndMarkers = 0;
+                    this.recordThoughtEnd(endMarker.marker);
+                    if (this.stopRequested) {
+                        this.buffer = "";
+                        break;
+                    }
                     continue;
                 }
 
@@ -178,12 +193,35 @@ export class StreamParser {
                 THOUGHT_START_MARKERS,
                 normalizedBuffer,
             );
-            if (startMarker) {
+            const endMarker = this.findMarker(
+                THOUGHT_END_MARKERS,
+                normalizedBuffer,
+            );
+            if (
+                startMarker &&
+                (!endMarker || startMarker.index < endMarker.index)
+            ) {
                 this.pushChunk(chunks, this.buffer.slice(0, startMarker.index));
                 this.buffer = this.buffer.slice(
                     startMarker.index + startMarker.marker.length,
                 );
-                this.inThinkBlock = true;
+                if (!this.thoughtBlockClosed) {
+                    this.inThinkBlock = true;
+                }
+                continue;
+            }
+
+            if (endMarker) {
+                this.pushChunk(chunks, this.buffer.slice(0, endMarker.index));
+                this.buffer = this.buffer.slice(
+                    endMarker.index + endMarker.marker.length,
+                );
+                this.thoughtBlockClosed = true;
+                this.recordThoughtEnd(endMarker.marker);
+                if (this.stopRequested) {
+                    this.buffer = "";
+                    break;
+                }
                 continue;
             }
 
@@ -205,7 +243,11 @@ export class StreamParser {
                 ? this.buffer.length
                 : this.buffer.length -
                 this.possibleMarkerSuffixLength(
-                    [...THOUGHT_START_MARKERS, TOOL_CALL_START],
+                    [
+                        ...THOUGHT_START_MARKERS,
+                        ...THOUGHT_END_MARKERS,
+                        TOOL_CALL_START,
+                    ],
                     normalizedBuffer,
                 );
             if (safeLength > 0) {
@@ -354,10 +396,21 @@ export class StreamParser {
     }
 
     private pushChunk(chunks: StreamChunk[], content: string): void {
-        if (!content) return;
+        const cleanedContent = content.replace(/<\/?think>/gi, "");
+        if (!cleanedContent) return;
+        this.consecutiveThinkEndMarkers = 0;
         const type = this.inThinkBlock ? "thought_delta" : "text_delta";
-        chunks.push({ type, content });
+        chunks.push({ type, content: cleanedContent });
         if (type === "text_delta") this.hasEmittedText = true;
+    }
+
+    private recordThoughtEnd(marker: string): void {
+        if (marker.toLowerCase() === "</think>") {
+            this.consecutiveThinkEndMarkers += 1;
+            this.stopRequested = this.consecutiveThinkEndMarkers > 3;
+        } else {
+            this.consecutiveThinkEndMarkers = 0;
+        }
     }
 }
 

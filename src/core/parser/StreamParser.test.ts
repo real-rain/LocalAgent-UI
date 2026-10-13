@@ -39,6 +39,33 @@ describe("StreamParser", () => {
         ]);
     });
 
+    it("treats all output after the first thought end marker as answer text", () => {
+        const parser = new StreamParser();
+        const chunks = [
+            ...parser.parse("<think>draft</think>Answer <think>more draft</think> done"),
+            ...parser.flush(),
+        ];
+
+        expect(chunks).toEqual([
+            { type: "thought_delta", content: "draft" },
+            { type: "text_delta", content: "Answer " },
+            { type: "text_delta", content: "more draft" },
+            { type: "text_delta", content: " done" },
+        ]);
+    });
+
+    it("removes stray thought tags and stops after more than three closing tags", () => {
+        const parser = new StreamParser();
+        const chunks = parser.parse("<think>draft</think></think></think>");
+
+        expect(chunks).toEqual([
+            { type: "thought_delta", content: "draft" },
+        ]);
+        expect(parser.shouldStop).toBe(false);
+        expect(parser.parse("</think>ignored")).toEqual([]);
+        expect(parser.shouldStop).toBe(true);
+    });
+
     it("extracts tool calls wrapped in tags across stream chunks", () => {
         const parser = new StreamParser();
         const chunks = [

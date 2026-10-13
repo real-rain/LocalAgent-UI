@@ -102,6 +102,9 @@ export class WebLLMProvider implements ChatProvider {
 
         const engine = this.engine;
         const parser = new StreamParser();
+        const webLLMSystemPrompt = systemPrompt.includes("<context>")
+            ? `${systemPrompt.trim()}\n\nPlease strictly answer the user's question in Chinese based on the provided context.`
+            : systemPrompt;
         let interruptPromise: Promise<void> | null = null;
         const interrupt = () => {
             if (!interruptPromise) {
@@ -120,7 +123,7 @@ export class WebLLMProvider implements ChatProvider {
 
             const stream = await engine.chat.completions.create({
                 messages: [
-                    { role: "system", content: systemPrompt },
+                    { role: "system", content: webLLMSystemPrompt },
                     ...messages.map(({ role, content }) => ({
                         role: role === "tool" ? "user" as const : role,
                         content:
@@ -131,6 +134,7 @@ export class WebLLMProvider implements ChatProvider {
                 ],
                 temperature: 0.6,
                 top_p: 0.9,
+                stop: ["</think>", "<|im_end|>", "<|endoftext|>"],
                 stream: true,
             });
 
@@ -155,6 +159,7 @@ export class WebLLMProvider implements ChatProvider {
                 for (const parsedChunk of parser.parse(content)) {
                     yield parsedChunk;
                 }
+                if (parser.shouldStop) break;
             }
 
             if (!signal?.aborted) {

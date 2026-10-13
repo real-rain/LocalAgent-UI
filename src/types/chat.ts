@@ -35,6 +35,7 @@ export interface Message {
   content: string;
   status?: MessageStatus;
   thoughtProcess?: string;
+  isThinking?: boolean;
   toolCalls?: ToolCall[];
   performance?: MessagePerformance;
 }

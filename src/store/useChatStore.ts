@@ -81,6 +81,7 @@ export interface ActiveArtifact {
 interface PendingStreamChunks {
   content: string[];
   thoughtProcess: string[];
+  isThinking?: boolean;
 }
 
 const pendingStreamChunks = new Map<string, PendingStreamChunks>();
@@ -238,6 +239,9 @@ function flushPendingStreamChunks(): void {
             thoughtProcess:
               (message.thoughtProcess ?? "") + thoughtDelta,
           }
+          : {}),
+        ...(pending.isThinking !== undefined
+          ? { isThinking: pending.isThinking }
           : {}),
         ...(message.performance && contentDelta
           ? {
@@ -582,8 +586,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     };
     if (chunk.type === "thought_delta") {
       pending.thoughtProcess.push(chunk.content);
+      pending.isThinking = true;
     } else if (chunk.type === "text_delta") {
       pending.content.push(chunk.content);
+      pending.isThinking = false;
     } else {
       return;
     }
@@ -614,6 +620,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     const completedMessage: Message = { ...message, status: "complete" };
+    completedMessage.isThinking = false;
     completedMessage.performance = message.performance
       ? { ...message.performance, endTime: Date.now() }
       : undefined;

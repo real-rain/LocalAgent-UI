@@ -27,24 +27,28 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
     const { t } = useTranslation();
     const thoughtProcess = message.thoughtProcess ?? "";
     const isStreaming = message.status === "streaming";
+    const isThinking = isStreaming && (message.isThinking ?? true);
     const hasThoughtProcess = Boolean(thoughtProcess.trim());
-    const [isExpanded, setIsExpanded] = useState(isStreaming);
+    const [isExpanded, setIsExpanded] = useState(isThinking);
     const [promptIndex, setPromptIndex] = useState(0);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const contentId = useId();
     const startedAtRef = useRef<number | null>(null);
 
     useEffect(() => {
-        if (isStreaming) return;
+        if (isThinking) {
+            setIsExpanded(true);
+            return;
+        }
 
         const frame = window.requestAnimationFrame(() => {
             setIsExpanded(false);
         });
         return () => window.cancelAnimationFrame(frame);
-    }, [isStreaming, message.id]);
+    }, [isThinking, message.id]);
 
     useEffect(() => {
-        if (!isStreaming) {
+        if (!isThinking) {
             if (startedAtRef.current !== null) {
                 setElapsedSeconds((Date.now() - startedAtRef.current) / 1000);
                 startedAtRef.current = null;
@@ -62,19 +66,19 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
         const timer = window.setInterval(updateElapsedTime, 100);
 
         return () => window.clearInterval(timer);
-    }, [isStreaming, message.id]);
+    }, [isThinking, message.id]);
 
     useEffect(() => {
-        if (!isStreaming || hasThoughtProcess) return;
+        if (!isThinking || hasThoughtProcess) return;
 
         const timer = window.setInterval(() => {
             setPromptIndex((index) => (index + 1) % 3);
         }, 2400);
 
         return () => window.clearInterval(timer);
-    }, [hasThoughtProcess, isStreaming]);
+    }, [hasThoughtProcess, isThinking]);
 
-    if (!isStreaming && !hasThoughtProcess) return null;
+    if (!isThinking && !hasThoughtProcess) return null;
 
     if (!hasThoughtProcess) {
         return (
@@ -131,7 +135,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
             >
                 <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
                     <Brain className="size-[18px]" aria-hidden="true" />
-                    {isStreaming && (
+                    {isThinking && (
                         <Loader2
                             className="absolute -right-1 -top-1 size-3.5 animate-spin text-indigo-400 drop-shadow-[0_0_5px_rgba(129,140,248,0.9)]"
                             aria-hidden="true"
@@ -143,7 +147,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                         {t("chat.thoughtProcess")}
                     </span>
                     <span className="mt-1 block text-xs text-indigo-200/60">
-                        {isStreaming
+                        {isThinking
                             ? t("chat.thinkingElapsed", {
                                 seconds: elapsedSeconds.toFixed(1),
                             })
@@ -174,7 +178,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                     <span className="whitespace-pre-wrap break-words">
                         {thoughtProcess}
                     </span>
-                    {isStreaming && (
+                    {isThinking && (
                         <span className="ml-0.5 inline-block h-3 w-1 animate-pulse rounded-sm bg-indigo-300/80 align-middle" />
                     )}
                 </div>
