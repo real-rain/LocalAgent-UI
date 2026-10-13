@@ -13,9 +13,10 @@ import {
     pipeline,
     type FeatureExtractionPipeline,
 } from "@xenova/transformers";
+import { EMBEDDING_MODEL_ID } from "./embeddingModel";
 
 /** 用于将文本转换为稠密语义向量的多语言轻量模型。 */
-const MODEL_ID = "Xenova/bge-small-zh-v1.5";
+const MODEL_ID = EMBEDDING_MODEL_ID;
 
 /**
  * 主线程提交给 Worker 的向量化请求格式。
@@ -46,7 +47,9 @@ type EmbeddingResponse = {
     /** 向量化失败时返回的错误说明。 */
     error?: string;
     /** 模型加载期间发送的状态通知。 */
-    status?: string;
+    status?: "loading" | "ready" | "error";
+    modelId?: string;
+    dimension?: number;
 };
 
 /** 延迟初始化并在后续请求中复用特征提取管道。 */
@@ -66,16 +69,17 @@ self.onmessage = async (event: MessageEvent<EmbeddingRequest>) => {
             throw new Error("Embedding input must contain non-empty text.");
         }
         if (!extractor) {
+            self.postMessage({ id, status: "loading", modelId: MODEL_ID });
             extractor = await pipeline("feature-extraction", MODEL_ID, {
                 progress_callback: (progress: { status?: string }) => {
                     // 模型权重下载时通知主线程更新处理状态。
                     if (progress.status === "progress") {
-                        // 状态消息复用请求 ID；它不包含 embeddings 或 error 字段。
-                        self.postMessage({ id, status: "loading-model" });
+                        self.postMessage({ id, status: "loading", modelId: MODEL_ID });
                     }
                 },
             });
         }
+        self.postMessage({ id, status: "ready", modelId: MODEL_ID });
         const output = await extractor(texts, {
             pooling: "mean",
             normalize: true,
@@ -85,10 +89,19 @@ self.onmessage = async (event: MessageEvent<EmbeddingRequest>) => {
         const embeddings = vectors.length === texts.length
             ? vectors
             : [vectors[0] ?? []];
+        self.postMessage({
+            id,
+            status: "ready",
+            modelId: MODEL_ID,
+            dimension: embeddings[0]?.length,
+        });
         const response: EmbeddingResponse = { id, embeddings };
         // 将请求 ID 与按输入顺序排列的 number[][] 特征向量一起回传。
         self.postMessage(response);
     } catch (cause) {
+        if (!extractor) {
+            self.postMessage({ id, status: "error", modelId: MODEL_ID });
+        }
         const response: EmbeddingResponse = {
             id,
             error: cause instanceof Error ? cause.message : "Embedding failed.",

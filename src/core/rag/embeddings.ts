@@ -1,3 +1,5 @@
+import { EMBEDDING_MODEL_ID } from "./embeddingModel";
+
 /** 主线程中等待 Worker 返回结果的单个向量化请求。 */
 type PendingRequest = {
     resolve: (embeddings: number[][]) => void;
@@ -9,8 +11,37 @@ type EmbeddingResponse = {
     id: number;
     embeddings?: number[][];
     error?: string;
-    status?: string;
+    status?: "loading" | "ready" | "error";
+    modelId?: string;
+    dimension?: number;
 };
+
+export type EmbeddingModelStatus = {
+    state: "idle" | "loading" | "ready" | "error";
+    modelId: string;
+    dimension: number | null;
+};
+
+let modelStatus: EmbeddingModelStatus = {
+    state: "idle",
+    modelId: EMBEDDING_MODEL_ID,
+    dimension: null,
+};
+const statusListeners = new Set<() => void>();
+
+function updateModelStatus(update: Partial<EmbeddingModelStatus>) {
+    modelStatus = { ...modelStatus, ...update };
+    for (const listener of statusListeners) listener();
+}
+
+export function getEmbeddingModelStatus(): EmbeddingModelStatus {
+    return modelStatus;
+}
+
+export function subscribeEmbeddingModelStatus(listener: () => void): () => void {
+    statusListeners.add(listener);
+    return () => statusListeners.delete(listener);
+}
 
 let worker: Worker | undefined;
 let nextRequestId = 0;
@@ -25,7 +56,14 @@ function getWorker(): Worker {
     worker.onmessage = (event: MessageEvent<EmbeddingResponse>) => {
         const response = event.data;
         // 模型下载进度只用于状态提示，不对应待完成的向量化请求。
-        if (response.status) return;
+        if (response.status) {
+            updateModelStatus({
+                state: response.status,
+                modelId: response.modelId ?? EMBEDDING_MODEL_ID,
+                ...(response.dimension ? { dimension: response.dimension } : {}),
+            });
+            return;
+        }
         const pending = pendingRequests.get(response.id);
         if (!pending) return;
         pendingRequests.delete(response.id);
@@ -39,6 +77,7 @@ function getWorker(): Worker {
     };
     worker.onerror = (event) => {
         const error = new Error(event.message || "Embedding worker failed.");
+        updateModelStatus({ state: "error" });
         for (const pending of pendingRequests.values()) pending.reject(error);
         pendingRequests.clear();
         worker?.terminate();
