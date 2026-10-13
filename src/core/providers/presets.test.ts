@@ -12,7 +12,9 @@
 import { describe, expect, it } from "vitest";
 import {
     getPresetPrompt,
+    mergeOllamaModels,
     PROMPT_PRESETS,
+    PRESET_OLLAMA_MODELS,
     type PromptPreset,
 } from "./presets";
 
@@ -29,5 +31,42 @@ describe("prompt presets", () => {
         expect(getPresetPrompt(customPreset.id, [...PROMPT_PRESETS, customPreset]))
             .toBe(customPreset.prompt);
         expect(getPresetPrompt("missing-preset", [customPreset])).toBe("");
+    });
+});
+
+describe("mergeOllamaModels", () => {
+    it("keeps preset models available when Ollama has no local tags", () => {
+        expect(mergeOllamaModels([])).toEqual([
+            {
+                id: "gemma4:31b-cloud",
+                name: "gemma4:31b-cloud",
+                source: "preset",
+            },
+        ]);
+    });
+
+    it("merges local and custom tags without duplicates and prioritizes local", () => {
+        const models = mergeOllamaModels(
+            ["gemma4:31b-cloud", "llama3:latest", " LLAMA3:LATEST "],
+            ["llama3:latest", "custom-model"],
+        );
+
+        expect(models).toEqual([
+            {
+                id: PRESET_OLLAMA_MODELS[0],
+                name: PRESET_OLLAMA_MODELS[0],
+                source: "local",
+            },
+            {
+                id: "llama3:latest",
+                name: "llama3:latest",
+                source: "local",
+            },
+            {
+                id: "custom-model",
+                name: "custom-model",
+                source: "custom",
+            },
+        ]);
     });
 });

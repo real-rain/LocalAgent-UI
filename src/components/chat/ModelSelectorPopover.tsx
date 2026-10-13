@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, Cpu, LoaderCircle, Server, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { checkWebGPUSupport, fetchOllamaModels } from '../../core/utils/healthCheck';
+import { mergeOllamaModels } from '../../core/providers/presets';
 
 export interface ModelSelectorPopoverProps {
     selectedEngine: 'ollama' | 'webgpu';
@@ -39,9 +40,11 @@ export function ModelSelectorPopover({
     const [isOpen, setIsOpen] = useState(false);
     const [ollamaStatus, setOllamaStatus] = useState({
         isAlive: false,
-        models: [] as string[],
+        localModels: [] as string[],
         loading: true,
     });
+    const [customOllamaModels, setCustomOllamaModels] = useState<string[]>([]);
+    const [customModelName, setCustomModelName] = useState('');
     const [webgpuStatus, setWebgpuStatus] = useState<{
         isSupported: boolean;
         reason?: string;
@@ -57,6 +60,10 @@ export function ModelSelectorPopover({
     const triggerRef = useRef<HTMLButtonElement>(null);
     const healthCheckId = useRef(0);
     const webGPUModelsRequest = useRef<Promise<void> | null>(null);
+    const ollamaModels = mergeOllamaModels(
+        ollamaStatus.localModels,
+        customOllamaModels,
+    );
 
     const loadWebGPUModels = () => {
         if (webGPUModels.length > 0 || webGPUModelsRequest.current) return;
@@ -107,7 +114,11 @@ export function ModelSelectorPopover({
 
         setWebgpuStatus(webgpuResult);
         setIsCheckingWebGPU(false);
-        setOllamaStatus({ ...ollamaResult, loading: false });
+        setOllamaStatus({
+            isAlive: ollamaResult.isAlive,
+            localModels: ollamaResult.models,
+            loading: false,
+        });
         return ollamaResult;
     }, []);
 
@@ -160,13 +171,22 @@ export function ModelSelectorPopover({
     const handleOllamaSelect = (model: string) => {
         if (disabled) return;
 
-        if (!ollamaStatus.isAlive) {
-            setErrorMessage(t('modelSelector.ollamaConnectionError'));
-            return;
-        }
-
         onSelectEngine('ollama', model);
         setIsOpen(false);
+    };
+
+    const handleAddCustomModel = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const model = customModelName.trim();
+        if (!model || disabled) return;
+
+        setCustomOllamaModels((models) =>
+            models.some((existing) => existing.toLowerCase() === model.toLowerCase())
+                ? models
+                : [...models, model],
+        );
+        setCustomModelName('');
+        handleOllamaSelect(model);
     };
 
     const handleReconnect = async () => {
@@ -239,40 +259,42 @@ export function ModelSelectorPopover({
                     <div className="px-2.5 pb-1.5 pt-2 text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
                         {t('modelSelector.localEndpoints')}
                     </div>
-                    {ollamaStatus.loading ? (
+                    {ollamaStatus.loading && (
                         <div className="flex items-center gap-2.5 px-2.5 py-2 text-xs text-zinc-500">
                             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
                             {t('modelSelector.checkingOllama')}
                         </div>
-                    ) : ollamaStatus.isAlive ? (
-                        ollamaStatus.models.length > 0 ? (
-                            ollamaStatus.models.map((model) => {
-                                const isSelected = selectedEngine === 'ollama' && selectedModel === model;
+                    )}
+                    {ollamaModels.map((model) => {
+                        const isSelected = selectedEngine === 'ollama' && selectedModel === model.name;
 
-                                return (
-                                    <button
-                                        key={model}
-                                        type="button"
-                                        role="option"
-                                        aria-selected={isSelected}
-                                        disabled={disabled}
-                                        onClick={() => handleOllamaSelect(model)}
-                                        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <Server className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
-                                        <span className="flex-1 truncate">{model}</span>
-                                        {isSelected && (
-                                            <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
-                                        )}
-                                    </button>
-                                );
-                            })
-                        ) : (
-                            <p className="px-2.5 py-2 text-xs text-zinc-500">
-                                {t('modelSelector.noOllamaModels')}
-                            </p>
-                        )
-                    ) : (
+                        return (
+                            <button
+                                key={model.id}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                disabled={disabled}
+                                onClick={() => handleOllamaSelect(model.name)}
+                                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Server className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
+                                <span className="flex-1 truncate">{model.name}</span>
+                                <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] text-zinc-400">
+                                    {model.source === 'local'
+                                        ? t('modelSelector.localBadge')
+                                        : model.source === 'preset'
+                                            ? t('modelSelector.presetBadge')
+                                            : t('modelSelector.customBadge')}
+                                </span>
+                                {isSelected && (
+                                    <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+                                )}
+                            </button>
+                        );
+                    })}
+
+                    {!ollamaStatus.loading && !ollamaStatus.isAlive && (
                         <button
                             type="button"
                             disabled={disabled}
@@ -354,6 +376,33 @@ export function ModelSelectorPopover({
                                 </button>
                             );
                         })
+                    )}
+
+                    <form
+                        onSubmit={handleAddCustomModel}
+                        className="mt-1.5 flex gap-1.5 border-t border-zinc-800 px-1 pt-2"
+                    >
+                        <input
+                            aria-label={t('modelSelector.customModelPlaceholder')}
+                            value={customModelName}
+                            onChange={(event) => setCustomModelName(event.target.value)}
+                            placeholder={t('modelSelector.customModelPlaceholder')}
+                            disabled={disabled}
+                            className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                        />
+                        <button
+                            type="submit"
+                            disabled={disabled || !customModelName.trim()}
+                            className="rounded-md bg-zinc-800 px-2 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {t('modelSelector.addModel')}
+                        </button>
+                    </form>
+
+                    {!ollamaStatus.loading && ollamaStatus.localModels.length === 0 && (
+                        <p className="px-2.5 py-2 text-[10px] leading-relaxed text-zinc-500">
+                            {t('modelSelector.presetFallback')}
+                        </p>
                     )}
 
                     {errorMessage && (

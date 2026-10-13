@@ -18,6 +18,49 @@ export interface PromptPreset {
     builtIn: boolean;
 }
 
+export interface OllamaModelOption {
+    id: string;
+    name: string;
+    source: "local" | "preset" | "custom";
+}
+
+export const PRESET_OLLAMA_MODELS = [
+    "gemma4:31b-cloud",
+] as const;
+
+/**
+ * 合并本地已拉取模型、系统预设模型和用户手动添加的模型。
+ * 同名模型只保留一次，并优先采用本地来源标记。
+ */
+export function mergeOllamaModels(
+    localModels: string[],
+    customModels: string[] = [],
+): OllamaModelOption[] {
+    const models = new Map<string, OllamaModelOption>();
+
+    const addModels = (
+        names: string[],
+        source: OllamaModelOption["source"],
+    ) => {
+        for (const rawName of names) {
+            const name = rawName.trim();
+            if (!name) continue;
+
+            const id = name.toLowerCase();
+            const existing = models.get(id);
+            if (!existing || (source === "local" && existing.source !== "local")) {
+                models.set(id, { id, name, source });
+            }
+        }
+    };
+
+    addModels(PRESET_OLLAMA_MODELS.slice(), "preset");
+    addModels(customModels, "custom");
+    addModels(localModels, "local");
+
+    return Array.from(models.values());
+}
+
 export const PROMPT_PRESETS: PromptPreset[] = [
     {
         id: "code-assistant",
