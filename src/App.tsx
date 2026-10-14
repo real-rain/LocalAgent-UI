@@ -1113,8 +1113,8 @@ ${retrievedContext.join("\n\n")}
             disabled={isStreaming}
             className="col-span-2 row-start-2 min-w-0 w-full max-w-full justify-self-stretch border-0 p-0 sm:col-span-1 sm:row-start-auto sm:w-auto sm:max-w-[min(70vw,40rem)] sm:justify-self-center"
           >
-            <div className="flex min-w-0 items-center gap-2 overflow-x-auto no-scrollbar w-full py-2 px-3 whitespace-nowrap scroll-smooth">
-              <div className="flex items-center shrink-0">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 flex-1 py-1 px-2">
+              <div className="flex items-center shrink-0 select-none">
                 <ModelSelectorPopover
                   selectedEngine={engineMode}
                   selectedModel={modelName}
@@ -1126,7 +1126,7 @@ ${retrievedContext.join("\n\n")}
                   }
                 />
               </div>
-              <div className="flex items-center shrink-0">
+              <div className="flex items-center shrink-0 select-none">
                 <PromptPresetSelector
                   presetId={promptPresetId}
                   presets={userPromptPresets}
@@ -1136,7 +1136,7 @@ ${retrievedContext.join("\n\n")}
                   onDeletePreset={handleDeletePromptPreset}
                 />
               </div>
-              <div className="flex items-center shrink-0">
+              <div className="flex items-center shrink-0 select-none">
                 <ToolConfirmToggle
                   checked={requireToolConfirmation}
                   disabled={isStreaming}
@@ -1145,26 +1145,28 @@ ${retrievedContext.join("\n\n")}
               </div>
             </div>
           </fieldset>
-          <button
-            type="button"
-            aria-label={t("common.switchLanguage")}
-            disabled={isStreaming}
-            title={
-              isStreaming
-                ? t(
-                  "header.disabledWhileGenerating",
-                  "Cannot change language while generating",
-                )
-                : t("common.switchLanguage")
-            }
-            onClick={handleLanguageToggle}
-            className={`col-span-1 row-start-1 ml-auto h-9 shrink-0 justify-self-end rounded-full border border-zinc-800/80 bg-zinc-900/70 px-3 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 sm:col-span-1 sm:row-start-auto ${isStreaming
-              ? "opacity-50 cursor-not-allowed pointer-events-none"
-              : ""
-              }`}
-          >
-            {i18n.resolvedLanguage?.startsWith("zh") ? "ZH" : "EN"}
-          </button>
+          <div className="col-span-1 row-start-1 ml-auto flex items-center shrink-0 select-none justify-self-end sm:col-span-1 sm:row-start-auto">
+            <button
+              type="button"
+              aria-label={t("common.switchLanguage")}
+              disabled={isStreaming}
+              title={
+                isStreaming
+                  ? t(
+                    "header.disabledWhileGenerating",
+                    "Cannot change language while generating",
+                  )
+                  : t("common.switchLanguage")
+              }
+              onClick={handleLanguageToggle}
+              className={`h-9 shrink-0 rounded-full border border-zinc-800/80 bg-zinc-900/70 px-3 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 ${isStreaming
+                ? "opacity-50 cursor-not-allowed pointer-events-none"
+                : ""
+                }`}
+            >
+              {i18n.resolvedLanguage?.startsWith("zh") ? "ZH" : "EN"}
+            </button>
+          </div>
         </header>
 
         <div className="relative min-h-0 flex-1">

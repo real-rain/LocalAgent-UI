@@ -125,8 +125,8 @@
     "renderingDiagram": "正在渲染流程图…",
     "mermaidRenderError": "无法渲染 Mermaid 流程图",
     "toolConfirmToggle": {
-      "confirmationEnabled": "安全确认：开启",
-      "automaticExecution": "工具执行：自动",
+      "confirmationEnabled": "🛡️ 安全确认: 开启",
+      "automaticExecution": "⚡ 工具执行: 自动",
       "confirmationEnabledDescription": "已开启安全防护：Agent 调用工具前需人工二次确认",
       "automaticExecutionDescription": "已开启极速模式：Agent 将自动执行工具并回传结果"
     },
