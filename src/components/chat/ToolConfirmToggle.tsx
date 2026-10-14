@@ -43,7 +43,11 @@ export function ToolConfirmToggle({
             }
             disabled={disabled}
             onClick={() => onChange(!checked)}
-            className="h-8 px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium border border-zinc-700/60 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700/80 transition-all shrink-0 select-none cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`h-8 px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium border transition-all shrink-0 select-none cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+                checked
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25"
+                    : "bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25"
+            }`}
         >
             {checked ? (
                 <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />

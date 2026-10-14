@@ -241,7 +241,7 @@ export function ModelSelectorPopover({
 
     return (
         <div
-            className="relative flex max-w-full items-center gap-2 whitespace-nowrap shrink-0"
+            className="relative flex max-w-full min-w-0 items-center gap-2 whitespace-nowrap shrink-0"
             ref={popoverRef}
         >
             <button
@@ -259,7 +259,7 @@ export function ModelSelectorPopover({
                     }
                     setIsOpen(!isOpen);
                 }}
-                className="h-8 max-w-full px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium border border-zinc-700/60 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700/80 transition-all shrink-0 select-none cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-8 max-w-full min-w-0 px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium border border-zinc-700/60 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700/80 transition-all shrink-0 select-none cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {!selectedModel || selectedIsOffline ? (
                     <span
@@ -284,7 +284,7 @@ export function ModelSelectorPopover({
                 ) : (
                     <span className="h-2 w-2 rounded-full bg-zinc-600" aria-label={t('header.status.offline')} />
                 )}
-                <span className="min-w-0 flex-1 truncate">{triggerLabel}</span>
+                <span className="min-w-0 max-w-[160px] flex-1 truncate sm:max-w-[220px]">{triggerLabel}</span>
                 <ChevronDown
                     className={`h-3.5 w-3.5 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     aria-hidden="true"

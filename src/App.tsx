@@ -1113,7 +1113,7 @@ ${retrievedContext.join("\n\n")}
             disabled={isStreaming}
             className="col-span-2 row-start-2 min-w-0 w-full max-w-full justify-self-stretch border-0 p-0 sm:col-span-1 sm:row-start-auto sm:w-auto sm:max-w-[min(70vw,40rem)] sm:justify-self-center"
           >
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full py-2 px-3 whitespace-nowrap scroll-smooth">
+            <div className="flex min-w-0 items-center gap-2 overflow-x-auto no-scrollbar w-full py-2 px-3 whitespace-nowrap scroll-smooth">
               <div className="flex items-center shrink-0">
                 <ModelSelectorPopover
                   selectedEngine={engineMode}
