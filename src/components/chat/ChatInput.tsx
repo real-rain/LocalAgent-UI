@@ -10,6 +10,7 @@
  */
 
 import {
+  useEffect,
   useRef,
   type ChangeEvent,
   type FormEvent,
@@ -88,6 +89,13 @@ interface ChatInputProps {
   onOpenKnowledgeBase: () => void;
 }
 
+function resizeTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return;
+
+  textarea.style.height = "auto";
+  textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+}
+
 /**
  * 渲染消息输入框、文档上传入口及知识库处理状态。
  *
@@ -116,6 +124,11 @@ export function ChatInput({
   onOpenKnowledgeBase,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    resizeTextarea(textareaRef.current);
+  }, [value]);
 
   /**
    * 将所选文件交给父组件处理，并清空控件以支持重复选择同一文件。
@@ -132,7 +145,7 @@ export function ChatInput({
     <div className="mx-auto w-full max-w-4xl">
       <form
         onSubmit={onSubmit}
-        className="flex items-end gap-2 rounded-xl border border-zinc-800 bg-zinc-900/80 p-2 shadow-xl shadow-black/20 transition focus-within:border-zinc-700"
+        className="flex items-end gap-2 rounded-2xl border border-zinc-800/80 bg-zinc-900/75 p-2 shadow-[0_16px_48px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-200 focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-700"
       >
         <input
           ref={fileInputRef}
@@ -143,38 +156,46 @@ export function ChatInput({
           disabled={uploadDisabled}
           onChange={handleFileChange}
         />
-        <button
-          type="button"
-          aria-label={uploadLabel}
-          title={uploadTitle}
-          disabled={uploadDisabled}
-          onClick={() => fileInputRef.current?.click()}
-          className="grid size-10 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Paperclip className="size-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label={knowledgeBaseLabel}
-          title={knowledgeBaseTitle}
-          onClick={onOpenKnowledgeBase}
-          className="relative grid size-10 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-        >
-          <BookOpen className="size-4" aria-hidden="true" />
-          {documentCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border border-zinc-950 bg-violet-500 px-1 text-[9px] font-semibold leading-none text-white">
-              {documentCount}
-            </span>
-          )}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5 self-end mb-2 pl-2">
+          <button
+            type="button"
+            aria-label={uploadLabel}
+            title={uploadTitle}
+            disabled={uploadDisabled}
+            onClick={() => fileInputRef.current?.click()}
+            className="grid size-10 shrink-0 place-items-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800/80 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Paperclip className="size-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label={knowledgeBaseLabel}
+            title={knowledgeBaseTitle}
+            onClick={onOpenKnowledgeBase}
+            className="relative grid size-10 shrink-0 place-items-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800/80 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
+          >
+            <BookOpen className="size-4" aria-hidden="true" />
+            {documentCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border border-zinc-950 bg-violet-500 px-1 text-[9px] font-semibold leading-none text-white">
+                {documentCount}
+              </span>
+            )}
+          </button>
+        </div>
         <label className="sr-only" htmlFor="chat-input">
           {messageLabel}
         </label>
         <textarea
           id="chat-input"
-          ref={inputRef}
+          ref={(textarea) => {
+            textareaRef.current = textarea;
+            inputRef.current = textarea;
+          }}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            resizeTextarea(event.currentTarget);
+            onChange(event.currentTarget.value);
+          }}
           onKeyDown={(event) => {
             if (
               event.key === "Enter" &&
@@ -188,27 +209,29 @@ export function ChatInput({
           placeholder={placeholder}
           rows={1}
           disabled={disabled}
-          className="max-h-36 min-h-10 flex-1 resize-y bg-transparent px-3 py-2.5 text-sm leading-5 text-zinc-100 outline-none placeholder:text-zinc-600 disabled:opacity-50"
+          className="min-h-[44px] max-h-[160px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2.5 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:ring-0 disabled:opacity-50"
         />
-        <button
-          type="submit"
-          aria-label={sendLabel}
-          title={sendLabel}
-          disabled={!canSend}
-          className="grid size-10 shrink-0 place-items-center rounded-lg bg-violet-500 text-white transition hover:bg-violet-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-600"
-        >
-          <Send className="size-4" aria-hidden="true" />
-        </button>
+        <div className="shrink-0 self-end mb-1.5 pr-2">
+          <button
+            type="submit"
+            aria-label={sendLabel}
+            title={sendLabel}
+            disabled={!canSend}
+            className="grid size-10 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-950 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-600"
+          >
+            <Send className="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </form>
       {knowledgeStatus && (
         <p
           role="status"
           aria-live="polite"
-          className="mt-2 flex items-center gap-2 px-2 text-xs text-violet-300"
+          className="mt-2 flex items-center gap-2 px-2 text-xs text-zinc-400"
         >
           {knowledgeStatus !== "ready" && (
             <span
-              className="size-2 animate-pulse rounded-full bg-violet-400"
+              className="size-2 animate-pulse rounded-full bg-indigo-300"
               aria-hidden="true"
             />
           )}

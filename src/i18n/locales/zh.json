@@ -124,6 +124,12 @@
     "mermaidDiagram": "Mermaid 流程图",
     "renderingDiagram": "正在渲染流程图…",
     "mermaidRenderError": "无法渲染 Mermaid 流程图",
+    "toolConfirmToggle": {
+      "confirmationEnabled": "安全确认：开启",
+      "automaticExecution": "工具执行：自动",
+      "confirmationEnabledDescription": "已开启安全防护：Agent 调用工具前需人工二次确认",
+      "automaticExecutionDescription": "已开启极速模式：Agent 将自动执行工具并回传结果"
+    },
     "interruptedResponse": "此回复因页面关闭或刷新而中断；已保留已生成的部分内容。",
     "requestFailed": "请求失败",
     "requestFailedHelp": "请检查模型服务和权限配置。使用 Ollama Cloud 时，可在 .env.local 中设置 VITE_OLLAMA_API_KEY 后重启应用；该密钥会随前端请求发送，请仅用于可信环境。",
@@ -151,7 +157,7 @@
       "confirmClearMessage": "此操作将永久删除所有文档及向量切块，无法撤销。",
       "confirm": "确认清空",
       "clearing": "正在清空…",
-      "empty": "当前本地向量库为空，点击下方 📎 按钮上传文档以启用 RAG 检索。",
+      "empty": "当前本地向量库为空，点击下方按钮上传文档以启用 RAG 检索。",
       "chunkCount": "{{count}} 个切块",
       "delete": "删除文档",
       "deleteDocument": "删除文档 {{title}}",

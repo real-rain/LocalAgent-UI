@@ -114,10 +114,10 @@ export function CodeArtifactBox({
     return (
         <div
             ref={containerRef}
-            className={`overflow-hidden border border-zinc-200 bg-white text-left text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950 fullscreen:fixed fullscreen:inset-0 fullscreen:z-50 fullscreen:bg-zinc-950 ${isFullscreen ? "flex h-screen flex-col rounded-none" : "rounded-lg"}`}
+            className={`overflow-hidden border border-zinc-800/80 bg-zinc-950 text-left text-sm text-zinc-200 shadow-[0_20px_60px_rgba(0,0,0,0.45)] fullscreen:fixed fullscreen:inset-0 fullscreen:z-50 fullscreen:bg-zinc-950 ${isFullscreen ? "flex h-screen flex-col rounded-none" : "rounded-xl"}`}
         >
-            <header className="flex min-h-11 items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
-                <span className="shrink-0 rounded bg-zinc-200 px-2 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+            <header className="flex min-h-11 items-center gap-3 border-b border-zinc-800/80 bg-zinc-900/80 px-3 py-2 backdrop-blur-xl">
+                <span className="shrink-0 rounded-md border border-zinc-700/70 bg-zinc-800/80 px-2 py-0.5 font-mono text-xs text-zinc-300">
                     {language}
                 </span>
                 {title && (
@@ -130,7 +130,7 @@ export function CodeArtifactBox({
                         <button
                             type="button"
                             onClick={handleToggleFullscreen}
-                            className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                            className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                             aria-label={isFullscreen ? t("common.exitFullscreen") : t("common.fullscreen")}
                             title={isFullscreen ? t("common.exitFullscreen") : t("common.fullscreen")}
                         >
@@ -142,12 +142,12 @@ export function CodeArtifactBox({
                         </button>
                     )}
                     {supportsPreview && (
-                        <div className="mr-1 flex rounded-md bg-zinc-200 p-0.5 dark:bg-zinc-800" role="tablist" aria-label={t("chat.artifactView")}>
+                        <div className="mr-1 flex rounded-lg border border-zinc-800/80 bg-zinc-900 p-0.5" role="tablist" aria-label={t("chat.artifactView")}>
                             <button
                                 type="button"
                                 role="tab"
                                 aria-selected={activeTab === "code"}
-                                className={`rounded px-2 py-1 text-xs transition-colors ${activeTab === "code" ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"}`}
+                                className={`rounded-md px-2 py-1 text-xs transition-colors ${activeTab === "code" ? "bg-zinc-800 text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-200"}`}
                                 onClick={() => {
                                     setActiveTab("code");
                                     if (document.fullscreenElement === containerRef.current) {
@@ -163,7 +163,7 @@ export function CodeArtifactBox({
                                 type="button"
                                 role="tab"
                                 aria-selected={activeTab === "preview"}
-                                className={`rounded px-2 py-1 text-xs transition-colors ${activeTab === "preview" ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"}`}
+                                className={`rounded-md px-2 py-1 text-xs transition-colors ${activeTab === "preview" ? "bg-zinc-800 text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-200"}`}
                                 onClick={() => setActiveTab("preview")}
                             >
                                 {t("chat.preview")}
@@ -173,7 +173,7 @@ export function CodeArtifactBox({
                     <button
                         type="button"
                         onClick={copyCode}
-                        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                         aria-label={copyStatus === "copied" ? t("chat.codeCopied") : t("chat.copyCode")}
                     >
                         {copyStatus === "copied" ? (
@@ -187,7 +187,7 @@ export function CodeArtifactBox({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                            className="inline-flex items-center justify-center rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                             aria-label={t("common.close")}
                             title={t("common.close")}
                         >

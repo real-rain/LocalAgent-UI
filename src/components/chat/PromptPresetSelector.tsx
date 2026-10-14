@@ -9,9 +9,15 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 
-import { useState, type FormEvent } from "react";
+import {
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type FormEvent,
+} from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
     PROMPT_PRESETS,
@@ -46,16 +52,87 @@ export function PromptPresetSelector({
     onDeletePreset,
 }: PromptPresetSelectorProps) {
     const { t } = useTranslation();
+    const [isOpen, setIsOpen] = useState(false);
     const [isManaging, setIsManaging] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [name, setName] = useState("");
     const [prompt, setPrompt] = useState("");
     const [error, setError] = useState("");
+    const selectorRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [menuPosition, setMenuPosition] = useState<{
+        left: number;
+        top: number;
+    } | null>(null);
     const builtInNames = new Map<string, string>([
         ["code-assistant", t("prompts.presets.codeAssistant")],
         ["translator", t("prompts.presets.translator")],
     ]);
     const editingPreset = presets.find((preset) => preset.id === editingId);
+    const availablePresets = [
+        ...PROMPT_PRESETS,
+        ...presets.filter((item) => !item.builtIn),
+    ];
+    const selectedPreset = availablePresets.find((item) => item.id === presetId);
+    const selectedPresetName = selectedPreset
+        ? builtInNames.get(selectedPreset.id) ?? selectedPreset.name
+        : t("prompts.label");
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target;
+            if (
+                target instanceof Node &&
+                !selectorRef.current?.contains(target) &&
+                !menuRef.current?.contains(target)
+            ) {
+                setIsOpen(false);
+            }
+        };
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setIsOpen(false);
+                triggerRef.current?.focus();
+            }
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isOpen]);
+
+    useLayoutEffect(() => {
+        if (!isOpen) return;
+
+        const updateMenuPosition = () => {
+            const trigger = triggerRef.current;
+            if (!trigger) return;
+
+            const bounds = trigger.getBoundingClientRect();
+            const menuWidth = 240;
+            setMenuPosition({
+                left: Math.min(
+                    Math.max(8, bounds.left),
+                    Math.max(8, window.innerWidth - menuWidth - 8),
+                ),
+                top: bounds.bottom,
+            });
+        };
+
+        updateMenuPosition();
+        window.addEventListener("resize", updateMenuPosition);
+        window.addEventListener("scroll", updateMenuPosition, true);
+        return () => {
+            window.removeEventListener("resize", updateMenuPosition);
+            window.removeEventListener("scroll", updateMenuPosition, true);
+        };
+    }, [isOpen]);
 
     function beginCreate() {
         setEditingId(null);
@@ -107,37 +184,93 @@ export function PromptPresetSelector({
 
     return (
         <>
-            <div className="flex items-center gap-2 whitespace-nowrap shrink-0">
+            <div
+                ref={selectorRef}
+                className="flex items-center gap-2 whitespace-nowrap shrink-0"
+            >
                 <label className="sr-only" htmlFor="prompt-preset">
                     {t("prompts.label")}
                 </label>
-                <select
+                <button
+                    ref={triggerRef}
                     id="prompt-preset"
-                    value={presetId}
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={isOpen}
                     disabled={disabled}
-                    onChange={(event) => onPresetChange(event.target.value)}
-                    className="max-w-36 shrink-0 whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-300 outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
+                    onClick={() => setIsOpen((open) => !open)}
+                    className="h-8 px-3 inline-flex items-center justify-center gap-1.5 leading-none rounded-full text-xs font-medium border border-zinc-700/60 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700/80 transition-all shrink-0 select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    {[...PROMPT_PRESETS, ...presets.filter((item) => !item.builtIn)].map(
-                        (preset) => (
-                            <option key={preset.id} value={preset.id}>
-                                {builtInNames.get(preset.id) ?? preset.name}
-                            </option>
-                        ),
-                    )}
-                </select>
+                    <Sparkles className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span className="max-w-36 truncate leading-none">{selectedPresetName}</span>
+                    <ChevronDown
+                        className={`h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        aria-hidden="true"
+                    />
+                </button>
                 <button
                     type="button"
                     disabled={disabled}
                     onClick={() => {
+                        setIsOpen(false);
                         setIsManaging(true);
                         beginCreate();
                     }}
-                    className="flex items-center gap-2 whitespace-nowrap shrink-0 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50"
+                    className="h-8 px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium border border-zinc-700/60 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700/80 transition-all shrink-0 select-none cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {t("prompts.manage")}
                 </button>
             </div>
+
+            {isOpen && menuPosition && createPortal(
+                <div
+                    className="fixed z-50"
+                    style={{
+                        left: menuPosition.left,
+                        top: menuPosition.top,
+                    }}
+                >
+                    <div
+                        ref={menuRef}
+                        className="z-50 absolute top-full left-0 mt-2 min-w-[180px] max-w-[min(20rem,calc(100vw-1rem))] rounded-xl border border-zinc-800/90 bg-zinc-900/95 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+                        role="listbox"
+                        aria-label={t("prompts.label")}
+                    >
+                        {availablePresets.map((preset) => {
+                            const isSelected = preset.id === presetId;
+                            const label =
+                                builtInNames.get(preset.id) ?? preset.name;
+
+                            return (
+                                <button
+                                    key={preset.id}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    onClick={() => {
+                                        onPresetChange(preset.id);
+                                        setIsOpen(false);
+                                    }}
+                                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-zinc-800/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600 ${
+                                        isSelected
+                                            ? "bg-emerald-500/10 font-medium text-emerald-400"
+                                            : "text-zinc-300"
+                                    }`}
+                                >
+                                    <span className="truncate">{label}</span>
+                                    {isSelected && (
+                                        <Check
+                                            className="ml-3 size-3.5 shrink-0 text-emerald-400"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>,
+                document.body,
+            )}
 
             {isManaging &&
                 createPortal(
@@ -153,7 +286,7 @@ export function PromptPresetSelector({
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="prompt-manager-title"
-                            className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-950 p-5 shadow-2xl"
+                            className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950/95 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-xl"
                         >
                             <header className="mb-4 flex items-center gap-3">
                                 <h2
@@ -177,7 +310,7 @@ export function PromptPresetSelector({
                                     <button
                                         type="button"
                                         onClick={beginCreate}
-                                        className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm text-violet-200 hover:bg-violet-500/20"
+                                        className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-900/70 px-3 py-2 text-sm text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
                                     >
                                         <Plus className="size-4" aria-hidden="true" />
                                         {t("prompts.create")}
@@ -188,7 +321,7 @@ export function PromptPresetSelector({
                                             .map((item) => (
                                                 <li
                                                     key={item.id}
-                                                    className="flex items-center gap-1 rounded-lg border border-zinc-800 px-2 py-1.5"
+                                                    className="flex items-center gap-1 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-2 py-1.5 transition-colors hover:border-zinc-700"
                                                 >
                                                     <button
                                                         type="button"
@@ -255,7 +388,7 @@ export function PromptPresetSelector({
                                             onChange={(event) =>
                                                 setName(event.target.value)
                                             }
-                                            className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                                            className="w-full rounded-lg border border-zinc-800/80 bg-zinc-900/70 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-zinc-600 focus-visible:ring-2 focus-visible:ring-zinc-600"
                                         />
                                     </label>
                                     <label className="block space-y-1 text-xs text-zinc-400">
@@ -267,7 +400,7 @@ export function PromptPresetSelector({
                                             onChange={(event) =>
                                                 setPrompt(event.target.value)
                                             }
-                                            className="w-full resize-y rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm leading-5 text-zinc-100 outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                                            className="w-full resize-y rounded-lg border border-zinc-800/80 bg-zinc-900/70 px-3 py-2 text-sm leading-5 text-zinc-100 outline-none transition focus:border-zinc-600 focus-visible:ring-2 focus-visible:ring-zinc-600"
                                         />
                                     </label>
                                     {error && (
@@ -277,7 +410,7 @@ export function PromptPresetSelector({
                                     )}
                                     <button
                                         type="submit"
-                                        className="rounded-md bg-violet-500 px-3 py-2 text-sm font-medium text-white hover:bg-violet-400"
+                                        className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
                                     >
                                         {t("prompts.save")}
                                     </button>

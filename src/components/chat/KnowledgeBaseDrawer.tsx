@@ -198,9 +198,9 @@ export function KnowledgeBaseDrawer({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-xl flex-col border-l border-zinc-800 bg-zinc-900/95 shadow-2xl shadow-black/50 backdrop-blur-md"
+              className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-xl flex-col border-l border-zinc-800/70 bg-zinc-950/90 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl"
             >
-        <header className="shrink-0 border-b border-zinc-800 px-5 py-5 sm:px-6">
+        <header className="shrink-0 border-b border-zinc-800/70 bg-zinc-950/40 px-5 py-5 sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2
@@ -222,13 +222,13 @@ export function KnowledgeBaseDrawer({
               aria-label={t("common.close")}
               title={t("common.close")}
               onClick={onClose}
-              className="grid size-9 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              className="grid size-9 shrink-0 place-items-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
             >
               <X className="size-4" aria-hidden="true" />
             </button>
           </div>
           <div
-            className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs"
+            className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-zinc-800/80 bg-zinc-900/55 px-3 py-2 text-xs"
             aria-live="polite"
           >
             <span className="inline-flex items-center gap-1.5 font-medium text-violet-200">
@@ -280,7 +280,7 @@ export function KnowledgeBaseDrawer({
                     <button
                       type="button"
                       onClick={() => setPendingClear(false)}
-                      className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+                      className="rounded-md border border-zinc-700/80 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800/80"
                     >
                       {t("common.cancel")}
                     </button>
@@ -325,8 +325,8 @@ export function KnowledgeBaseDrawer({
               {t("common.loading")}
             </div>
           ) : documents.length === 0 ? (
-            <div className="flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-10 text-center">
-              <div className="mb-4 grid size-14 place-items-center rounded-2xl border border-violet-400/20 bg-violet-400/5 text-2xl">
+            <div className="flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800/80 bg-zinc-900/30 px-6 py-10 text-center">
+              <div className="mb-4 grid size-14 place-items-center rounded-2xl border border-zinc-700/70 bg-zinc-800/50 text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 📚
               </div>
               <p className="max-w-sm text-sm leading-6 text-zinc-400">
@@ -346,14 +346,14 @@ export function KnowledgeBaseDrawer({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.2, delay: Math.min(index * 0.035, 0.2) }}
-                    className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 transition-colors hover:border-zinc-700 hover:bg-zinc-900/90"
+                    className="overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all duration-200 hover:border-zinc-700/80 hover:bg-zinc-900/75"
                   >
                     <div className="flex items-start gap-3 p-4">
                       <button
                         type="button"
                         aria-expanded={isExpanded}
                         onClick={() => void handleToggleDocument(document.id)}
-                        className="flex min-w-0 flex-1 items-start gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400"
+                        className="flex min-w-0 flex-1 items-start gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-500"
                       >
                         {isExpanded ? (
                           <ChevronDown
@@ -404,7 +404,7 @@ export function KnowledgeBaseDrawer({
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.24, ease: "easeInOut" }}
-                        className="overflow-hidden border-t border-zinc-800 bg-zinc-950/50"
+                        className="overflow-hidden border-t border-zinc-800/80 bg-zinc-950/55"
                       >
                         <div className="p-4">
                         {expandedChunks.length === 0 ? (
@@ -416,7 +416,7 @@ export function KnowledgeBaseDrawer({
                             {expandedChunks.map((chunk, index) => (
                               <li
                                 key={chunk.id}
-                                className="rounded-lg border border-zinc-800/80 bg-zinc-900/70 p-3"
+                                className="rounded-lg border border-zinc-800/80 bg-zinc-900/60 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
                               >
                                 <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-medium uppercase tracking-wide text-violet-300/80">
                                   <span>

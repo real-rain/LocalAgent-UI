@@ -9,6 +9,7 @@
  * Copyright (c) 2026 by realrain, All Rights Reserved. 
  */
 import { ShieldCheck, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export interface ToolConfirmToggleProps {
     checked: boolean;
@@ -24,30 +25,32 @@ export function ToolConfirmToggle({
     disabled,
     onChange,
 }: ToolConfirmToggleProps) {
+    const { t } = useTranslation();
+    const label = checked
+        ? t("chat.toolConfirmToggle.confirmationEnabled")
+        : t("chat.toolConfirmToggle.automaticExecution");
+
     return (
         <button
             type="button"
             role="switch"
             aria-checked={checked}
-            aria-label={checked ? "安全确认: 开启" : "工具执行: 自动"}
+            aria-label={label}
             title={
                 checked
-                    ? "已开启安全防护：Agent 调用工具前需人工二次确认"
-                    : "已开启极速模式：Agent 将自动执行工具并回传结果"
+                    ? t("chat.toolConfirmToggle.confirmationEnabledDescription")
+                    : t("chat.toolConfirmToggle.automaticExecutionDescription")
             }
             disabled={disabled}
             onClick={() => onChange(!checked)}
-            className={`flex items-center gap-2 whitespace-nowrap shrink-0 px-2.5 py-1 text-xs rounded-full cursor-pointer transition-all duration-200 select-none border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-50 ${checked
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
-                : "bg-zinc-800/80 text-zinc-400 border-zinc-700/60 hover:bg-zinc-700/80"
-                }`}
+            className="h-8 px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium border border-zinc-700/60 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700/80 transition-all shrink-0 select-none cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
             {checked ? (
                 <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
             ) : (
                 <Zap className="size-3.5 shrink-0" aria-hidden="true" />
             )}
-            {checked ? "安全确认: 开启" : "工具执行: 自动"}
+            {label}
         </button>
     );
 }

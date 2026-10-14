@@ -57,48 +57,48 @@ export function ToolCallCard({
         case "pending":
             statusIcon = <span className="size-2 rounded-full bg-zinc-400" aria-hidden="true" />;
             statusText = toolCall.name;
-            statusClassName = "text-zinc-500 dark:text-zinc-400";
+            statusClassName = "text-zinc-400";
             break;
         case "running":
             statusIcon = <Loader2 className="size-4 animate-spin text-blue-500" aria-hidden="true" />;
             statusText = `Executing ${toolCall.name}...`;
-            statusClassName = "text-blue-600 dark:text-blue-400";
+            statusClassName = "text-sky-300";
             break;
         case "success":
             statusIcon = <Check className="size-4 text-emerald-500" aria-hidden="true" />;
             statusText = `Executed ${toolCall.name}`;
-            statusClassName = "text-emerald-600 dark:text-emerald-400";
+            statusClassName = "text-emerald-300";
             break;
         case "awaiting_confirmation":
             statusIcon = <span className="size-2 rounded-full bg-amber-500" aria-hidden="true" />;
             statusText = `Confirmation required: ${toolCall.name}`;
-            statusClassName = "text-amber-600 dark:text-amber-400";
+            statusClassName = "text-amber-300";
             break;
         case "tool_executing":
             statusIcon = <Loader2 className="size-4 animate-spin text-blue-500" aria-hidden="true" />;
             statusText = `Executing ${toolCall.name}...`;
-            statusClassName = "text-blue-600 dark:text-blue-400";
+            statusClassName = "text-sky-300";
             break;
         case "executed":
             statusIcon = <Check className="size-4 text-emerald-500" aria-hidden="true" />;
             statusText = `Executed ${toolCall.name}`;
-            statusClassName = "text-emerald-600 dark:text-emerald-400";
+            statusClassName = "text-emerald-300";
             break;
         case "failed":
         case "error":
             statusIcon = <AlertTriangle className="size-4 text-red-500" aria-hidden="true" />;
             statusText = `Failed ${toolCall.name}`;
-            statusClassName = "text-red-600 dark:text-red-400";
+            statusClassName = "text-red-300";
             break;
         case "rejected":
             statusIcon = <AlertTriangle className="size-4 text-amber-500" aria-hidden="true" />;
             statusText = `Rejected ${toolCall.name}`;
-            statusClassName = "text-amber-600 dark:text-amber-400";
+            statusClassName = "text-amber-300";
             break;
     }
 
     return (
-        <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white font-mono text-xs shadow-sm dark:border-zinc-700 dark:bg-zinc-950">
+        <section className="overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950/80 font-mono text-xs shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
             <div className="flex items-center gap-2 px-3 py-2">
                 <Wrench className="size-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
                 <span className={`flex min-w-0 flex-1 items-center gap-2 ${statusClassName}`}>
@@ -107,7 +107,7 @@ export function ToolCallCard({
                 </span>
                 <button
                     type="button"
-                    className="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-800/80 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                     aria-label={isOpen ? "Collapse tool call details" : "Expand tool call details"}
                     aria-expanded={isOpen}
                     aria-controls={contentId}
@@ -121,12 +121,12 @@ export function ToolCallCard({
             </div>
 
             {toolCall.status === "awaiting_confirmation" && onApprove && onReject && (
-                <div className="flex justify-end gap-2 border-t border-zinc-200 px-3 py-2 dark:border-zinc-700">
+                <div className="flex justify-end gap-2 border-t border-zinc-800/80 px-3 py-2">
                     <button
                         type="button"
                         disabled={hasResponded}
                         onClick={() => respond(onReject)}
-                        className="rounded-md border border-zinc-300 px-2.5 py-1.5 font-sans text-xs text-zinc-600 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        className="rounded-md border border-zinc-700/80 px-2.5 py-1.5 font-sans text-xs text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                     >
                         {isChinese ? "拒绝" : "Reject"}
                     </button>
@@ -134,7 +134,7 @@ export function ToolCallCard({
                         type="button"
                         disabled={hasResponded}
                         onClick={() => respond(onApprove)}
-                        className="rounded-md bg-blue-600 px-2.5 py-1.5 font-sans text-xs text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-md bg-zinc-100 px-2.5 py-1.5 font-sans text-xs font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isChinese ? "允许执行" : "Allow execution"}
                     </button>
@@ -142,11 +142,11 @@ export function ToolCallCard({
             )}
 
             {isOpen && (
-                <div id={contentId} className="space-y-3 border-t border-zinc-200 p-3 dark:border-zinc-700">
+                <div id={contentId} className="space-y-3 border-t border-zinc-800/80 p-3">
                     <div className="space-y-1.5">
                         <h3 className="font-semibold uppercase tracking-wider text-zinc-500">Arguments</h3>
                         <pre className="overflow-x-auto whitespace-pre-wrap break-words">
-                            <code className="block rounded bg-zinc-900 p-2 text-xs text-zinc-200">
+                            <code className="block rounded-lg border border-zinc-800/70 bg-zinc-900/80 p-2 text-xs text-zinc-200">
                                 {JSON.stringify(toolCall.arguments, null, 2)}
                             </code>
                         </pre>
@@ -154,7 +154,7 @@ export function ToolCallCard({
                     <div className="space-y-1.5">
                         <h3 className="font-semibold uppercase tracking-wider text-zinc-500">Result</h3>
                         <pre className="overflow-x-auto whitespace-pre-wrap break-words">
-                            <code className="block rounded bg-zinc-900 p-2 text-xs text-zinc-200">
+                            <code className="block rounded-lg border border-zinc-800/70 bg-zinc-900/80 p-2 text-xs text-zinc-200">
                                 {toolCall.result === undefined
                                     ? "No result yet."
                                     : JSON.stringify(toolCall.result, null, 2)}

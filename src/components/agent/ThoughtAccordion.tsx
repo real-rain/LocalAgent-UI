@@ -85,12 +85,12 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
             <motion.section
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3.5 backdrop-blur"
+                className="rounded-xl border border-indigo-400/20 bg-zinc-900/60 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] backdrop-blur-xl"
                 aria-live="polite"
                 aria-label={t("chat.agentDeepThinking")}
             >
                 <div className="flex items-center gap-2.5">
-                    <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
+                    <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg border border-indigo-400/20 bg-indigo-400/10 text-indigo-200">
                         <Brain className="size-[18px] animate-pulse" aria-hidden="true" />
                         <Loader2
                             className="absolute -right-1 -top-1 size-3.5 animate-spin text-indigo-400 drop-shadow-[0_0_5px_rgba(129,140,248,0.9)]"
@@ -124,7 +124,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
             layout
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 p-3.5 shadow-[0_0_18px_rgba(129,140,248,0.06)] backdrop-blur"
+            className="overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/45 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] backdrop-blur-xl transition-colors hover:border-zinc-700/80"
         >
             <button
                 type="button"
@@ -133,7 +133,7 @@ export function ThoughtAccordion({ message }: ThoughtAccordionProps) {
                 aria-controls={contentId}
                 onClick={() => setIsExpanded((expanded) => !expanded)}
             >
-                <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
+                <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg border border-indigo-400/20 bg-indigo-400/10 text-indigo-200">
                     <Brain className="size-[18px]" aria-hidden="true" />
                     {isThinking && (
                         <Loader2

@@ -185,9 +185,9 @@ function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockPro
     }
 
     return (
-        <div className="group my-3 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 text-left text-sm">
-            <header className="flex min-h-10 items-center gap-3 border-b border-zinc-700 bg-zinc-900 px-3 py-2">
-                <span className="shrink-0 rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs text-zinc-300">
+        <div className="group my-3 overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950/80 text-left text-sm shadow-[0_8px_24px_rgba(0,0,0,0.16)]">
+            <header className="flex min-h-10 items-center gap-3 border-b border-zinc-800/80 bg-zinc-900/70 px-3 py-2">
+                <span className="shrink-0 rounded-md border border-zinc-700/70 bg-zinc-800/70 px-2 py-0.5 font-mono text-xs text-zinc-300">
                     {language || "text"}
                 </span>
                 <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -195,7 +195,7 @@ function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockPro
                         <button
                             type="button"
                             onClick={() => setActiveArtifact({ code, language, previewCode })}
-                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 opacity-100 transition-opacity hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 group-focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 opacity-100 transition-colors hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 group-focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                         >
                             <ExternalLink className="size-3.5" aria-hidden="true" />
                             {t("chat.openInSandbox")}
@@ -204,7 +204,7 @@ function MarkdownCodeBlock({ language, code, previewCode }: MarkdownCodeBlockPro
                     <button
                         type="button"
                         onClick={() => void handleCopy()}
-                        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                         aria-label={copyStatus === "copied" ? "Copied!" : t("chat.copyCode")}
                         title={copyStatus === "copied" ? "Copied!" : t("chat.copyCode")}
                     >

@@ -124,6 +124,12 @@
     "mermaidDiagram": "Mermaid diagram",
     "renderingDiagram": "Rendering diagram…",
     "mermaidRenderError": "Unable to render Mermaid diagram",
+    "toolConfirmToggle": {
+      "confirmationEnabled": "Confirm tools: On",
+      "automaticExecution": "Tool execution: Automatic",
+      "confirmationEnabledDescription": "Safety confirmation is enabled: the agent will ask before using tools.",
+      "automaticExecutionDescription": "Fast mode is enabled: the agent will run tools automatically and return the results."
+    },
     "interruptedResponse": "This response was interrupted by a page reload or close. The generated portion has been saved.",
     "requestFailed": "Request failed",
     "requestFailedHelp": "Check the model service and permissions. For Ollama Cloud, set VITE_OLLAMA_API_KEY in .env.local and restart the app. This key is sent by the frontend, so only use it in a trusted environment.",
@@ -151,7 +157,7 @@
       "confirmClearMessage": "This permanently deletes all documents and vector chunks and cannot be undone.",
       "confirm": "Clear everything",
       "clearing": "Clearing…",
-      "empty": "The local vector database is empty. Click the 📎 button below to upload documents and enable RAG retrieval.",
+      "empty": "The local vector database is empty. Click the button below to upload documents and enable RAG retrieval.",
       "chunkCount": "{{count}} chunks",
       "delete": "Delete document",
       "deleteDocument": "Delete document {{title}}",

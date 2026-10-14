@@ -19,7 +19,11 @@ import {
 import {
   ArrowDown,
   ArrowUpRight,
+  Brain,
+  Eye,
   Sidebar,
+  Wrench,
+  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import logo from "./assets/logo.svg";
@@ -1049,7 +1053,7 @@ ${retrievedContext.join("\n\n")}
     (session) => session.id === currentSessionId,
   );
   return (
-    <main className="flex h-[100dvh] min-h-[560px] overflow-hidden bg-zinc-950 text-zinc-100">
+    <main className="relative flex h-[100dvh] min-h-[560px] overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-950 to-zinc-900/70 text-zinc-100">
       {isSidebarOpen && (
         <AppSidebar
           sessions={sessions}
@@ -1072,7 +1076,7 @@ ${retrievedContext.join("\n\n")}
       )}
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="z-10 grid min-h-16 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-zinc-800 bg-zinc-950/90 px-4 backdrop-blur sm:px-6">
+        <header className="z-10 grid min-h-16 shrink-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto] items-center gap-x-2 gap-y-1 border-b border-zinc-800/70 bg-zinc-950/75 px-3 py-2 shadow-[0_1px_0_rgba(255,255,255,0.02)] backdrop-blur-xl sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:grid-rows-1 sm:gap-3 sm:px-6 sm:py-0">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -1087,15 +1091,15 @@ ${retrievedContext.join("\n\n")}
                   : t("sidebar.expandSidebar")
               }
               onClick={() => setIsSidebarOpen((open) => !open)}
-              className="grid size-9 shrink-0 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              className="ml-[min(18rem,calc(100vw-3rem))] grid size-9 shrink-0 place-items-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 sm:ml-0"
             >
               <Sidebar className="size-[18px]" aria-hidden="true" />
             </button>
-            <div className="min-w-0">
+            <div className="hidden min-w-0 sm:block">
               <h1 className="truncate text-sm font-medium text-zinc-200">
                 {currentSession?.title || t("sidebar.newSession")}
               </h1>
-              <p className="mt-0.5 text-[11px] text-zinc-600">
+              <p className="mt-0.5 whitespace-nowrap text-[11px] text-zinc-500">
                 {engineMode === "ollama"
                   ? t("header.localOllama")
                   : isWebLLMReady
@@ -1107,32 +1111,38 @@ ${retrievedContext.join("\n\n")}
 
           <fieldset
             disabled={isStreaming}
-            className="min-w-0 max-w-[min(70vw,40rem)] justify-self-center border-0 p-0"
+            className="col-span-2 row-start-2 min-w-0 w-full max-w-full justify-self-stretch border-0 p-0 sm:col-span-1 sm:row-start-auto sm:w-auto sm:max-w-[min(70vw,40rem)] sm:justify-self-center"
           >
-            <div className="flex items-center justify-center gap-2 whitespace-nowrap shrink-0">
-              <ModelSelectorPopover
-                selectedEngine={engineMode}
-                selectedModel={modelName}
-                isWebLLMReady={isWebLLMReady}
-                isWebLLMLoading={isWebLLMLoading}
-                disabled={isStreaming}
-                onSelectEngine={(engine, model) =>
-                  handleEngineChange(engine, model)
-                }
-              />
-              <PromptPresetSelector
-                presetId={promptPresetId}
-                presets={userPromptPresets}
-                disabled={isStreaming}
-                onPresetChange={handlePresetChange}
-                onSavePreset={handleSavePromptPreset}
-                onDeletePreset={handleDeletePromptPreset}
-              />
-              <ToolConfirmToggle
-                checked={requireToolConfirmation}
-                disabled={isStreaming}
-                onChange={setRequireToolConfirmation}
-              />
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full py-2 px-3 whitespace-nowrap scroll-smooth">
+              <div className="flex items-center shrink-0">
+                <ModelSelectorPopover
+                  selectedEngine={engineMode}
+                  selectedModel={modelName}
+                  isWebLLMReady={isWebLLMReady}
+                  isWebLLMLoading={isWebLLMLoading}
+                  disabled={isStreaming}
+                  onSelectEngine={(engine, model) =>
+                    handleEngineChange(engine, model)
+                  }
+                />
+              </div>
+              <div className="flex items-center shrink-0">
+                <PromptPresetSelector
+                  presetId={promptPresetId}
+                  presets={userPromptPresets}
+                  disabled={isStreaming}
+                  onPresetChange={handlePresetChange}
+                  onSavePreset={handleSavePromptPreset}
+                  onDeletePreset={handleDeletePromptPreset}
+                />
+              </div>
+              <div className="flex items-center shrink-0">
+                <ToolConfirmToggle
+                  checked={requireToolConfirmation}
+                  disabled={isStreaming}
+                  onChange={setRequireToolConfirmation}
+                />
+              </div>
             </div>
           </fieldset>
           <button
@@ -1148,7 +1158,7 @@ ${retrievedContext.join("\n\n")}
                 : t("common.switchLanguage")
             }
             onClick={handleLanguageToggle}
-            className={`shrink-0 justify-self-end px-2.5 py-1 text-xs rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${isStreaming
+            className={`col-span-1 row-start-1 ml-auto h-9 shrink-0 justify-self-end rounded-full border border-zinc-800/80 bg-zinc-900/70 px-3 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 sm:col-span-1 sm:row-start-auto ${isStreaming
               ? "opacity-50 cursor-not-allowed pointer-events-none"
               : ""
               }`}
@@ -1175,18 +1185,24 @@ ${retrievedContext.join("\n\n")}
                 />
               ) : messages.length === 0 ? (
                 <div className="flex min-h-[52vh] flex-col items-center justify-center py-8 text-center">
-                  <img
-                    src={logo}
-                    alt={t("common.logoAlt")}
-                    className="w-12 h-12 mb-3 drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-pulse"
-                  />
-                  <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
+                  <div className="relative mb-5 grid size-16 place-items-center rounded-2xl border border-zinc-700/60 bg-zinc-900/70 shadow-[0_0_36px_rgba(99,102,241,0.12)]">
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-1 rounded-xl bg-gradient-to-br from-indigo-400/10 to-transparent"
+                    />
+                    <img
+                      src={logo}
+                      alt={t("common.logoAlt")}
+                      className="relative z-10 size-10 drop-shadow-[0_0_20px_rgba(165,180,252,0.28)]"
+                    />
+                  </div>
+                  <h2 className="bg-gradient-to-r from-zinc-100 via-zinc-200 to-zinc-400 bg-clip-text text-xl font-semibold tracking-tight text-transparent">
                     {t("chat.welcomeTitle")}
                   </h2>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
+                  <p className="mt-2 max-w-md text-sm leading-6 text-zinc-400">
                     {t("chat.welcomeDescription")}
                   </p>
-                  <div className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-3 px-4 md:grid-cols-2">
+                  <div className="mx-auto mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 px-4 sm:grid-cols-2">
                     {starterSuggestions.map((suggestion) => (
                       <button
                         key={suggestion.id}
@@ -1194,18 +1210,33 @@ ${retrievedContext.join("\n\n")}
                         onClick={() =>
                           setInput(t(`starterCards.${suggestion.id}.prompt`))
                         }
-                        className="group flex cursor-pointer flex-col justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-left transition-all hover:border-zinc-700/80 hover:bg-zinc-800/80 hover:shadow-lg hover:shadow-indigo-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                        className="group flex min-h-36 cursor-pointer flex-col justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition-all duration-200 hover:border-zinc-700/80 hover:bg-zinc-900/80 hover:shadow-[0_0_15px_rgba(255,255,255,0.03)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                       >
-                        <span className="w-fit rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-400 transition-colors group-hover:text-indigo-300">
-                          {t(`starterCards.${suggestion.id}.tag`)}
-                        </span>
-                        <span className="mt-2 text-sm font-semibold text-zinc-200 transition-colors group-hover:text-zinc-100">
+                        <div className="flex w-full items-center justify-between">
+                          <span className="grid size-9 place-items-center rounded-lg border border-zinc-800/80 bg-zinc-950/60 text-zinc-400 transition-colors group-hover:border-zinc-700 group-hover:bg-zinc-800/80 group-hover:text-zinc-200">
+                            {suggestion.id === "livePreview" ? (
+                              <Eye className="size-4" aria-hidden="true" />
+                            ) : suggestion.id === "cotReasoning" ? (
+                              <Brain className="size-4" aria-hidden="true" />
+                            ) : suggestion.id === "toolCalling" ? (
+                              <Wrench className="size-4" aria-hidden="true" />
+                            ) : (
+                              <Zap className="size-4" aria-hidden="true" />
+                            )}
+                          </span>
+                          <span className="w-fit rounded-md border border-zinc-700/60 bg-zinc-800/70 px-2 py-1 text-[10px] font-semibold text-zinc-400 transition-colors group-hover:border-zinc-600 group-hover:text-zinc-200">
+                            {t(`starterCards.${suggestion.id}.tag`)}
+                          </span>
+                        </div>
+                        <span className="mt-2 text-sm font-semibold text-zinc-200 transition-colors group-hover:text-white">
                           {t(`starterCards.${suggestion.id}.title`)}
                         </span>
-                        <span className="mt-1 line-clamp-2 text-xs font-medium text-zinc-300 group-hover:text-zinc-100">
+                        <span className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400 transition-colors group-hover:text-zinc-300">
                           {t(`starterCards.${suggestion.id}.description`)}
                         </span>
-                        <ArrowUpRight className="ml-auto mt-2 h-3.5 w-3.5 text-zinc-500 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-indigo-400" aria-hidden="true" />
+                        <span className="ml-auto mt-1 grid size-7 place-items-center rounded-lg border border-zinc-800/80 bg-zinc-950/40 text-zinc-500 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:border-zinc-700 group-hover:bg-zinc-800/70 group-hover:text-zinc-200">
+                          <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1262,7 +1293,7 @@ ${retrievedContext.join("\n\n")}
                 aria-label={t("chat.scrollToLatest")}
                 title={t("chat.scrollToLatest")}
                 onClick={scrollToBottom}
-                className="grid size-10 place-items-center rounded-full border border-zinc-700 bg-zinc-800/95 text-zinc-100 shadow-lg shadow-black/30 transition hover:border-violet-400/50 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                className="grid size-10 place-items-center rounded-full border border-zinc-700/80 bg-zinc-900/95 text-zinc-100 shadow-lg shadow-black/30 backdrop-blur transition hover:border-zinc-600 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
               >
                 <ArrowDown className="size-4" aria-hidden="true" />
               </button>
@@ -1270,7 +1301,7 @@ ${retrievedContext.join("\n\n")}
           )}
         </div>
 
-        <footer className="shrink-0 border-t border-zinc-800/80 bg-zinc-950/90 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:px-6">
+        <footer className="shrink-0 border-t border-zinc-800/60 bg-zinc-950/70 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl sm:px-6">
           <ChatInput
             value={input}
             inputRef={inputRef}

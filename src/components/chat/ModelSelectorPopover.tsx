@@ -8,7 +8,8 @@
  * @X/Discord/✈️: 1936648485@qq.com ~~~~~~~~~~~~~~~~~~~~~~~ Blog：reallyrain.com
  * Copyright (c) 2026 by realrain, All Rights Reserved.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, ChevronDown, Cpu, LoaderCircle, Server, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { checkWebGPUSupport, fetchOllamaModels } from '../../core/utils/healthCheck';
@@ -57,7 +58,12 @@ export function ModelSelectorPopover({
     const [webGPUModelsError, setWebGPUModelsError] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
+    const [popoverPosition, setPopoverPosition] = useState<{
+        left: number;
+        top: number;
+    } | null>(null);
     const healthCheckId = useRef(0);
     const webGPUModelsRequest = useRef<Promise<void> | null>(null);
     const ollamaModels = mergeOllamaModels(
@@ -142,7 +148,12 @@ export function ModelSelectorPopover({
         if (!isOpen) return;
 
         const handlePointerDown = (event: PointerEvent) => {
-            if (!popoverRef.current?.contains(event.target as Node)) {
+            const target = event.target;
+            if (
+                target instanceof Node &&
+                !popoverRef.current?.contains(target) &&
+                !menuRef.current?.contains(target)
+            ) {
                 setIsOpen(false);
             }
         };
@@ -158,6 +169,33 @@ export function ModelSelectorPopover({
         return () => {
             document.removeEventListener('pointerdown', handlePointerDown);
             document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen]);
+
+    useLayoutEffect(() => {
+        if (!isOpen) return;
+
+        const updatePopoverPosition = () => {
+            const trigger = triggerRef.current;
+            if (!trigger) return;
+
+            const bounds = trigger.getBoundingClientRect();
+            const menuWidth = 288;
+            setPopoverPosition({
+                left: Math.min(
+                    Math.max(8, bounds.left),
+                    Math.max(8, window.innerWidth - menuWidth - 8),
+                ),
+                top: bounds.bottom,
+            });
+        };
+
+        updatePopoverPosition();
+        window.addEventListener('resize', updatePopoverPosition);
+        window.addEventListener('scroll', updatePopoverPosition, true);
+        return () => {
+            window.removeEventListener('resize', updatePopoverPosition);
+            window.removeEventListener('scroll', updatePopoverPosition, true);
         };
     }, [isOpen]);
 
@@ -221,7 +259,7 @@ export function ModelSelectorPopover({
                     }
                     setIsOpen(!isOpen);
                 }}
-                className="flex max-w-full shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-8 max-w-full px-3 inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium border border-zinc-700/60 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700/80 transition-all shrink-0 select-none cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
             >
                 {!selectedModel || selectedIsOffline ? (
                     <span
@@ -248,17 +286,34 @@ export function ModelSelectorPopover({
                 )}
                 <span className="min-w-0 flex-1 truncate">{triggerLabel}</span>
                 <ChevronDown
-                    className={`h-3.5 w-3.5 text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`h-3.5 w-3.5 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     aria-hidden="true"
                 />
             </button>
 
-            {isOpen && (
+            {isOpen && popoverPosition && createPortal(
                 <div
-                    className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-1.5 shadow-xl shadow-black/40"
-                    role="listbox"
-                    aria-label={t('header.selectModel')}
+                    className="fixed z-50"
+                    style={{
+                        left: popoverPosition.left,
+                        top: popoverPosition.top,
+                    }}
                 >
+                    <div
+                        ref={menuRef}
+                        className="z-50 absolute top-full left-0 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-zinc-800/80 bg-zinc-950/95 p-1.5 shadow-2xl backdrop-blur-xl"
+                        role="listbox"
+                        aria-label={t('header.selectModel')}
+                    >
+                    {(ollamaStatus.loading || isLoadingWebGPUModels) ? (
+                        <p className="px-2.5 py-2 text-xs text-zinc-400" aria-live="polite">
+                            ⏳ 正在读取模型列表...
+                        </p>
+                    ) : ollamaStatus.localModels.length === 0 && webGPUModels.length === 0 ? (
+                        <p className="px-2.5 py-2 text-xs text-zinc-400" aria-live="polite">
+                            未发现模型，已载入预设
+                        </p>
+                    ) : null}
                     <div className="px-2.5 pb-1.5 pt-2 text-[10px] font-semibold tracking-[0.14em] text-zinc-500">
                         {t('modelSelector.localEndpoints')}
                     </div>
@@ -279,7 +334,7 @@ export function ModelSelectorPopover({
                                 aria-selected={isSelected}
                                 disabled={disabled}
                                 onClick={() => handleOllamaSelect(model.name)}
-                                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-300 transition-colors hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-700 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <Server className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
                                 <span className="flex-1 truncate">{model.name}</span>
@@ -302,7 +357,7 @@ export function ModelSelectorPopover({
                             type="button"
                             disabled={disabled}
                             onClick={() => void handleReconnect()}
-                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-amber-400 transition-colors hover:bg-zinc-800/70 focus-visible:bg-zinc-800/70 focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-amber-300 transition-colors hover:bg-zinc-800/70 focus-visible:bg-zinc-800/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-700 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                             {t('header.status.offline')} · {t('modelSelector.reconnect')}
@@ -360,7 +415,7 @@ export function ModelSelectorPopover({
                                     }}
                                     className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors focus-visible:outline-none ${isDisabled
                                             ? 'cursor-not-allowed text-zinc-600'
-                                            : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70'
+                                                : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-zinc-100 focus-visible:bg-zinc-800/70 focus-visible:ring-1 focus-visible:ring-zinc-700'
                                         }`}
                                 >
                                     <Cpu
@@ -383,7 +438,7 @@ export function ModelSelectorPopover({
 
                     <form
                         onSubmit={handleAddCustomModel}
-                        className="mt-1.5 flex gap-1.5 border-t border-zinc-800 px-1 pt-2"
+                        className="mt-1.5 flex gap-1.5 border-t border-zinc-800/80 px-1 pt-2"
                     >
                         <input
                             aria-label={t('modelSelector.customModelPlaceholder')}
@@ -391,7 +446,7 @@ export function ModelSelectorPopover({
                             onChange={(event) => setCustomModelName(event.target.value)}
                             placeholder={t('modelSelector.customModelPlaceholder')}
                             disabled={disabled}
-                            className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                            className="min-w-0 flex-1 rounded-md border border-zinc-800/80 bg-zinc-900/80 px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700 disabled:opacity-50"
                         />
                         <button
                             type="submit"
@@ -416,8 +471,9 @@ export function ModelSelectorPopover({
                             {errorMessage}
                         </p>
                     )}
+                    </div>
                 </div>
-            )}
+            , document.body)}
         </div>
     );
 }

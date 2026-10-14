@@ -41,11 +41,11 @@ export function WebGPULoaderCard({
     <div className="flex min-h-[52vh] items-center justify-center px-4 py-8">
       <section
         aria-label="WebGPU 模型初始化"
-        className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-indigo-500/20 bg-zinc-900/70 p-6 shadow-[0_0_70px_-24px_rgba(79,70,229,0.55)] sm:p-8"
+        className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/80 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-8"
       >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-indigo-500/10 blur-3xl"
+          className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-indigo-400/8 blur-3xl"
         />
         <div className="relative">
           <div className="mb-6 flex items-center gap-2 border-b border-zinc-800/80 pb-4">
@@ -118,7 +118,7 @@ export function WebGPULoaderCard({
             </p>
           )}
 
-          <div className="mt-5 rounded-lg border border-indigo-500/10 bg-indigo-500/5 px-3 py-2.5 text-[11px] leading-5 text-zinc-400">
+          <div className="mt-5 rounded-lg border border-zinc-800/80 bg-zinc-900/50 px-3 py-2.5 text-[11px] leading-5 text-zinc-400">
             {t("chat.firstLoadNote")}
           </div>
 

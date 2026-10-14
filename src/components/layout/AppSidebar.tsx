@@ -71,8 +71,8 @@ export default function AppSidebar({
   );
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950/95">
-      <div className="flex h-16 items-center justify-between border-b border-zinc-800 px-4">
+    <aside className="absolute inset-y-0 left-0 z-30 flex w-[min(18rem,calc(100vw-3rem))] shrink-0 flex-col border-r border-zinc-800/60 bg-zinc-950/95 shadow-[12px_0_36px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:relative sm:inset-auto sm:z-auto sm:w-72 sm:bg-zinc-950/80 sm:shadow-none">
+      <div className="flex h-16 items-center justify-between border-b border-zinc-800/60 px-4">
         <div className="flex items-center gap-2.5">
           <img
             src={logo}
@@ -89,7 +89,7 @@ export default function AppSidebar({
         <button
           type="button"
           onClick={onNewChat}
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/80 bg-gradient-to-b from-zinc-100 to-zinc-300 text-sm font-semibold text-zinc-900 shadow-[0_2px_12px_rgba(255,255,255,0.08)] transition-all duration-200 hover:border-white hover:from-white hover:to-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
         >
           <Plus className="size-4" aria-hidden="true" />
           {t("sidebar.newChat")}
@@ -98,7 +98,7 @@ export default function AppSidebar({
           <button
             type="button"
             onClick={onExportBackup}
-            className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-xs text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-zinc-800/60 bg-transparent text-xs text-zinc-400 transition-colors hover:border-zinc-700/80 hover:bg-zinc-900/60 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
           >
             <Download className="size-3.5" aria-hidden="true" />
             {t("sidebar.exportBackup")}
@@ -107,7 +107,7 @@ export default function AppSidebar({
             type="button"
             disabled={isImportingBackup}
             onClick={() => backupInputRef.current?.click()}
-            className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/70 text-xs text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-wait disabled:opacity-50"
+            className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-zinc-800/60 bg-transparent text-xs text-zinc-400 transition-colors hover:border-zinc-700/80 hover:bg-zinc-900/60 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 disabled:cursor-wait disabled:opacity-50"
           >
             <Upload className="size-3.5" aria-hidden="true" />
             {isImportingBackup
@@ -149,7 +149,7 @@ export default function AppSidebar({
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={t("sidebar.searchSessions")}
           aria-label={t("sidebar.searchSessions")}
-          className="h-9 w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-8 pr-3 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30"
+          className="h-9 w-full rounded-lg border border-zinc-800/80 bg-zinc-900/50 pl-8 pr-3 text-xs text-zinc-200 outline-none transition focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700 placeholder:text-zinc-600"
         />
       </label>
 
@@ -176,15 +176,15 @@ export default function AppSidebar({
               <div
                 key={session.id}
                 className={`group relative flex items-center gap-1 rounded-lg border px-2 py-1.5 transition ${isCurrent
-                  ? "border-zinc-800 bg-zinc-900"
+                  ? "border-transparent bg-zinc-900/70"
                   : "border-transparent hover:bg-zinc-900/70"
-                  }`}
+                  } ${isCurrent ? "before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-zinc-200/80 before:content-['']" : ""}`}
               >
                 <button
                   type="button"
                   onClick={() => onSwitchSession(session.id)}
                   aria-current={isCurrent ? "page" : undefined}
-                  className="min-w-0 flex-1 px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                  className="min-w-0 flex-1 px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                 >
                   <motion.span
                     key={session.title}
@@ -205,7 +205,7 @@ export default function AppSidebar({
                     )}
                   </span>
                 </button>
-                <div className="absolute right-1 top-1 flex items-center gap-0.5 rounded-md border border-zinc-700 bg-zinc-900 p-0.5 opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-within:opacity-100">
+                <div className="absolute right-1 top-1 flex items-center gap-0.5 rounded-md border border-zinc-700/80 bg-zinc-950/95 p-0.5 opacity-0 shadow-lg backdrop-blur transition group-hover:opacity-100 group-focus-within:opacity-100">
                   <button
                     type="button"
                     aria-label={`${t("sidebar.exportMarkdown")} ${session.title || t("sidebar.newSession")}`}
@@ -214,7 +214,7 @@ export default function AppSidebar({
                       event.stopPropagation();
                       onExportSession(session.id, "md");
                     }}
-                    className="grid size-7 place-items-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                    className="grid size-7 place-items-center rounded text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                   >
                     <Download className="size-3.5" aria-hidden="true" />
                   </button>
@@ -226,7 +226,7 @@ export default function AppSidebar({
                       event.stopPropagation();
                       onExportSession(session.id, "json");
                     }}
-                    className="grid size-7 place-items-center rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                    className="grid size-7 place-items-center rounded text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                   >
                     <FileJson className="size-3.5" aria-hidden="true" />
                   </button>
@@ -246,7 +246,7 @@ export default function AppSidebar({
         )}
       </nav>
 
-      <div className="border-t border-zinc-800 px-4 py-3">
+      <div className="border-t border-zinc-800/60 px-4 py-3">
         <p className="text-[11px] text-zinc-600">
           {t("sidebar.localStorageNote")}
         </p>
@@ -276,7 +276,7 @@ export default function AppSidebar({
             rel="noreferrer"
             aria-label="GitHub: real-rain"
             title="GitHub: real-rain"
-            className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
           >
             <img
               src={githubIcon}
@@ -290,7 +290,7 @@ export default function AppSidebar({
             rel="noreferrer"
             aria-label="X: realrain___"
             title="X: realrain___"
-            className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
           >
             <img
               src={twitterIcon}
@@ -304,7 +304,7 @@ export default function AppSidebar({
             rel="noreferrer"
             aria-label="Telegram: real_rain"
             title="Telegram: real_rain"
-            className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className="group grid size-8 place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
           >
             <img
               src={telegramIcon}
@@ -316,7 +316,7 @@ export default function AppSidebar({
             type="button"
             aria-label={t("footer.copyContact", { email: CONTACT_EMAIL })}
             onClick={onCopyContact}
-            className="group relative grid size-8 cursor-pointer place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className="group relative grid size-8 cursor-pointer place-items-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
           >
             <Mail className="size-4" aria-hidden="true" />
             <span className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded border border-zinc-800 bg-zinc-900/90 px-2 py-1 text-xs text-zinc-200 shadow-lg backdrop-blur group-hover:block group-focus-visible:block">
