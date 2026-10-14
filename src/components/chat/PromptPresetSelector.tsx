@@ -186,7 +186,7 @@ export function PromptPresetSelector({
         <>
             <div
                 ref={selectorRef}
-                className="flex items-center gap-2 whitespace-nowrap shrink-0"
+                className="flex items-center gap-2 whitespace-nowrap shrink-0 select-none"
             >
                 <label className="sr-only" htmlFor="prompt-preset">
                     {t("prompts.label")}

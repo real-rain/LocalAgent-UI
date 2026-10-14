@@ -125,8 +125,8 @@
     "renderingDiagram": "Rendering diagram…",
     "mermaidRenderError": "Unable to render Mermaid diagram",
     "toolConfirmToggle": {
-      "confirmationEnabled": "🛡️ Tools: Confirm",
-      "automaticExecution": "⚡ Tools: Auto",
+      "confirmationEnabled": "Tools: Confirm",
+      "automaticExecution": "Tools: Auto",
       "confirmationEnabledDescription": "Safety confirmation is enabled: the agent will ask before using tools.",
       "automaticExecutionDescription": "Fast mode is enabled: the agent will run tools automatically and return the results."
     },

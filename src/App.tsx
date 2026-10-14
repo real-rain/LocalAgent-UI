@@ -1113,7 +1113,7 @@ ${retrievedContext.join("\n\n")}
             disabled={isStreaming}
             className="col-span-2 row-start-2 min-w-0 w-full max-w-full justify-self-stretch border-0 p-0 sm:col-span-1 sm:row-start-auto sm:w-auto sm:max-w-[min(70vw,40rem)] sm:justify-self-center"
           >
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 flex-1 py-1 px-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1 overflow-x-auto no-scrollbar py-1 px-2 pr-14 sm:pr-2">
               <div className="flex items-center shrink-0 select-none">
                 <ModelSelectorPopover
                   selectedEngine={engineMode}
@@ -1145,7 +1145,7 @@ ${retrievedContext.join("\n\n")}
               </div>
             </div>
           </fieldset>
-          <div className="col-span-1 row-start-1 ml-auto flex items-center shrink-0 select-none justify-self-end sm:col-span-1 sm:row-start-auto">
+          <div className="col-span-1 row-start-1 ml-auto flex items-center shrink-0 pl-2 select-none justify-self-end sm:col-span-1 sm:row-start-auto">
             <button
               type="button"
               aria-label={t("common.switchLanguage")}

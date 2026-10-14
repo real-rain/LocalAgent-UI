@@ -241,7 +241,7 @@ export function ModelSelectorPopover({
 
     return (
         <div
-            className="relative flex max-w-full min-w-0 items-center gap-2 whitespace-nowrap shrink-0"
+            className="relative flex max-w-full min-w-0 items-center gap-2 whitespace-nowrap shrink-0 select-none"
             ref={popoverRef}
         >
             <button
@@ -284,7 +284,7 @@ export function ModelSelectorPopover({
                 ) : (
                     <span className="h-2 w-2 rounded-full bg-zinc-600" aria-label={t('header.status.offline')} />
                 )}
-                <span className="min-w-0 max-w-[160px] flex-1 truncate sm:max-w-[220px]">{triggerLabel}</span>
+                <span className="min-w-0 max-w-[130px] flex-1 truncate sm:max-w-[180px]">{triggerLabel}</span>
                 <ChevronDown
                     className={`h-3.5 w-3.5 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     aria-hidden="true"
